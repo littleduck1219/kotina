@@ -1,0 +1,44 @@
+name: Kotina
+options:
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+targets:
+  Kotina:
+    type: application
+    platform: macOS
+    sources:
+      - Kotina
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.littleduck.kotina
+        PRODUCT_NAME: Kotina
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSUIElement: YES
+        CODE_SIGNING_ALLOWED: NO
+  KotinaTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - KotinaTests
+    dependencies:
+      - target: Kotina
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.littleduck.kotina.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  Kotina:
+    build:
+      targets:
+        Kotina: all
+        KotinaTests:
+          - test
+    test:
+      targets:
+        - KotinaTests
+
