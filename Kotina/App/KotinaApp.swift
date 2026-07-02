@@ -6,6 +6,8 @@ enum AppIdentity {
 
 @main
 struct KotinaApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
         Settings {
             EmptyView()
