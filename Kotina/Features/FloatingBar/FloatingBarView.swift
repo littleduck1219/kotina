@@ -1,0 +1,231 @@
+import SwiftUI
+
+struct FloatingBarView: View {
+    @Bindable var model: FloatingBarViewModel
+    let expansionChanged: (Bool) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            inputBar
+
+            if model.isExpanded {
+                resultArea
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .frame(width: FloatingPanelLayout.width, alignment: .top)
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.28), radius: 20, y: 10)
+        .padding(.horizontal, 10)
+        .padding(.top, 4)
+        .animation(.snappy(duration: 0.22), value: model.isExpanded)
+        .onChange(of: model.isExpanded) { _, expanded in
+            expansionChanged(expanded)
+        }
+    }
+
+    private var inputBar: some View {
+        HStack(spacing: 12) {
+            appMark
+
+            TextField(
+                "텍스트를 입력하거나 붙여넣으세요",
+                text: $model.sourceText
+            )
+            .textFieldStyle(.plain)
+            .font(.system(size: 15, weight: .medium))
+            .accessibilityLabel("검사할 텍스트")
+
+            if case .loading = activePhase {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("처리 중")
+            }
+
+            if !model.sourceText.isEmpty {
+                Button(action: model.clear) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("입력 지우기")
+            }
+        }
+        .frame(height: FloatingPanelLayout.collapsedHeight)
+        .padding(.horizontal, 18)
+    }
+
+    private var appMark: some View {
+        Image(systemName: "character.cursor.ibeam")
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 30, height: 30)
+            .background(
+                LinearGradient(
+                    colors: [.purple, .blue],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+            )
+            .accessibilityHidden(true)
+    }
+
+    private var resultArea: some View {
+        VStack(spacing: 0) {
+            Divider().opacity(0.35)
+
+            HStack(spacing: 8) {
+                tabButton(.spelling, title: spellingTabTitle)
+                tabButton(.translation, title: "번역")
+                Spacer()
+
+                if let copyMessage = model.copyMessage {
+                    Text(copyMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .transition(.opacity)
+                        .accessibilityLabel(copyMessage)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+
+            Group {
+                if let validationMessage = model.validationMessage {
+                    messageView(
+                        icon: "exclamationmark.triangle.fill",
+                        title: validationMessage,
+                        actionTitle: nil,
+                        action: nil
+                    )
+                } else {
+                    selectedResult
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(height: FloatingPanelLayout.expandedHeight - FloatingPanelLayout.collapsedHeight)
+    }
+
+    @ViewBuilder
+    private var selectedResult: some View {
+        switch model.selectedTab {
+        case .spelling:
+            spellingContent
+        case .translation:
+            translationContent
+        }
+    }
+
+    @ViewBuilder
+    private var spellingContent: some View {
+        switch model.spellingPhase {
+        case .idle, .loading:
+            loadingView("맞춤법을 살펴보고 있어요")
+        case let .success(result):
+            SpellingResultView(result: result, copy: model.copyCorrectedText)
+        case let .failure(message):
+            messageView(
+                icon: "arrow.clockwise.circle.fill",
+                title: message,
+                actionTitle: "다시 검사",
+                action: model.retrySpelling
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var translationContent: some View {
+        switch model.translationPhase {
+        case .idle, .loading:
+            loadingView("영어로 옮기고 있어요")
+        case let .success(result):
+            TranslationResultView(result: result, copy: model.copyTranslation)
+        case let .failure(message):
+            messageView(
+                icon: "arrow.clockwise.circle.fill",
+                title: message,
+                actionTitle: "다시 번역",
+                action: model.retryTranslation
+            )
+        }
+    }
+
+    private var activePhase: AnyLoadPhase {
+        switch model.selectedTab {
+        case .spelling:
+            if case .loading = model.spellingPhase { return .loading }
+        case .translation:
+            if case .loading = model.translationPhase { return .loading }
+        }
+        return .settled
+    }
+
+    private var spellingTabTitle: String {
+        let count = model.currentSpellingResult?.issues.count
+        return count.map { "맞춤법 · \($0)" } ?? "맞춤법"
+    }
+
+    private func tabButton(_ tab: ResultTab, title: String) -> some View {
+        Button {
+            model.selectedTab = tab
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(model.selectedTab == tab ? .primary : .secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    model.selectedTab == tab
+                        ? Color.primary.opacity(0.09)
+                        : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func loadingView(_ title: String) -> some View {
+        VStack(spacing: 10) {
+            ProgressView()
+            Text(title)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func messageView(
+        icon: String,
+        title: String,
+        actionTitle: String?,
+        action: (() -> Void)?
+    ) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(.secondary)
+            Text(title)
+                .font(.callout)
+                .multilineTextAlignment(.center)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.bordered)
+            }
+        }
+        .padding(24)
+    }
+}
+
+private enum AnyLoadPhase {
+    case loading
+    case settled
+}
+
