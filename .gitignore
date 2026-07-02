@@ -13,6 +13,7 @@ Kotina.xcodeproj/
 
 # Local brainstorming artifacts
 .superpowers/
+.worktrees/
 
 # AI Wiki / LLM session pointers
 /CODEX.md
@@ -22,4 +23,3 @@ Kotina.xcodeproj/
 /docs/ai/
 /.claude/
 /.codex/
-
