@@ -1,5 +1,14 @@
 import SwiftUI
 
+enum FloatingBarMetrics {
+    static let horizontalInset: CGFloat = 10
+    static let verticalInset: CGFloat = 4
+    static let contentWidth = FloatingPanelLayout.width - horizontalInset * 2
+    static let inputHeight = FloatingPanelLayout.collapsedHeight - verticalInset * 2
+    static let resultHeight = FloatingPanelLayout.expandedHeight
+        - FloatingPanelLayout.collapsedHeight
+}
+
 struct FloatingBarView: View {
     @Bindable var model: FloatingBarViewModel
     let expansionChanged: (Bool) -> Void
@@ -13,7 +22,7 @@ struct FloatingBarView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .frame(width: FloatingPanelLayout.width, alignment: .top)
+        .frame(width: FloatingBarMetrics.contentWidth, alignment: .top)
         .background(
             .ultraThinMaterial,
             in: RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -23,8 +32,8 @@ struct FloatingBarView: View {
                 .stroke(.white.opacity(0.18), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.28), radius: 20, y: 10)
-        .padding(.horizontal, 10)
-        .padding(.top, 4)
+        .padding(.horizontal, FloatingBarMetrics.horizontalInset)
+        .padding(.vertical, FloatingBarMetrics.verticalInset)
         .animation(.snappy(duration: 0.22), value: model.isExpanded)
         .onChange(of: model.isExpanded) { _, expanded in
             expansionChanged(expanded)
@@ -43,7 +52,7 @@ struct FloatingBarView: View {
             .font(.system(size: 15, weight: .medium))
             .accessibilityLabel("검사할 텍스트")
 
-            if case .loading = activePhase {
+            if activeTabIsLoading {
                 ProgressView()
                     .controlSize(.small)
                     .accessibilityLabel("처리 중")
@@ -58,7 +67,7 @@ struct FloatingBarView: View {
                 .accessibilityLabel("입력 지우기")
             }
         }
-        .frame(height: FloatingPanelLayout.collapsedHeight)
+        .frame(height: FloatingBarMetrics.inputHeight)
         .padding(.horizontal, 18)
     }
 
@@ -68,11 +77,7 @@ struct FloatingBarView: View {
             .foregroundStyle(.white)
             .frame(width: 30, height: 30)
             .background(
-                LinearGradient(
-                    colors: [.purple, .blue],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
+                Color.accentColor,
                 in: RoundedRectangle(cornerRadius: 9, style: .continuous)
             )
             .accessibilityHidden(true)
@@ -112,7 +117,7 @@ struct FloatingBarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(height: FloatingPanelLayout.expandedHeight - FloatingPanelLayout.collapsedHeight)
+        .frame(height: FloatingBarMetrics.resultHeight)
     }
 
     @ViewBuilder
@@ -159,14 +164,14 @@ struct FloatingBarView: View {
         }
     }
 
-    private var activePhase: AnyLoadPhase {
+    private var activeTabIsLoading: Bool {
         switch model.selectedTab {
         case .spelling:
-            if case .loading = model.spellingPhase { return .loading }
+            if case .loading = model.spellingPhase { return true }
         case .translation:
-            if case .loading = model.translationPhase { return .loading }
+            if case .loading = model.translationPhase { return true }
         }
-        return .settled
+        return false
     }
 
     private var spellingTabTitle: String {
@@ -223,9 +228,3 @@ struct FloatingBarView: View {
         .padding(24)
     }
 }
-
-private enum AnyLoadPhase {
-    case loading
-    case settled
-}
-
