@@ -1,0 +1,25 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Generated project
+Kotina.xcodeproj/
+
+# Local brainstorming artifacts
+.superpowers/
+
+# AI Wiki / LLM session pointers
+/CODEX.md
+/CLAUDE.md
+/GEMINI.md
+/AGENTS.md
+/docs/ai/
+/.claude/
+/.codex/
+
