@@ -43,6 +43,7 @@ final class FloatingBarViewModel {
     private let spellingChecker: any SpellingChecking
     private let translator: any Translating
     private let pasteboard: any PasteboardWriting
+    private let applicationTerminator: any ApplicationTerminating
     private let debounce: Duration
 
     private var requestID = UUID()
@@ -55,16 +56,34 @@ final class FloatingBarViewModel {
         spellingChecker: any SpellingChecking,
         translator: any Translating,
         pasteboard: any PasteboardWriting,
+        applicationTerminator: any ApplicationTerminating,
         debounce: Duration = .milliseconds(300)
     ) {
         self.spellingChecker = spellingChecker
         self.translator = translator
         self.pasteboard = pasteboard
+        self.applicationTerminator = applicationTerminator
         self.debounce = debounce
     }
 
     func clear() {
         sourceText = ""
+    }
+
+    func shutdown() {
+        cancelProcessing()
+        copyMessageTask?.cancel()
+        requestID = UUID()
+        sourceText = ""
+        validationMessage = nil
+        copyMessage = nil
+        spellingPhase = .idle
+        translationPhase = .idle
+    }
+
+    func quit() {
+        shutdown()
+        applicationTerminator.terminate()
     }
 
     func retrySpelling() {

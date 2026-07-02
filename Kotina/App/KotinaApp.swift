@@ -12,5 +12,13 @@ struct KotinaApp: App {
         Settings {
             EmptyView()
         }
+        .commands {
+            CommandGroup(replacing: .appTermination) {
+                Button("Kotina 종료") {
+                    appDelegate.terminate()
+                }
+                .keyboardShortcut("q")
+            }
+        }
     }
 }

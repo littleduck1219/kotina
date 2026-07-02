@@ -174,6 +174,7 @@ final class FloatingBarViewModelTests: XCTestCase {
             spellingChecker: spelling,
             translator: translator,
             pasteboard: pasteboard,
+            applicationTerminator: RecordingApplicationTerminator(),
             debounce: .zero
         )
     }

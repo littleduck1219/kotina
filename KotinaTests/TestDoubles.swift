@@ -79,3 +79,12 @@ final class RecordingPasteboardWriter: PasteboardWriting {
         return succeeds
     }
 }
+
+@MainActor
+final class RecordingApplicationTerminator: ApplicationTerminating {
+    private(set) var callCount = 0
+
+    func terminate() {
+        callCount += 1
+    }
+}

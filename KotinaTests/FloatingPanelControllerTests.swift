@@ -36,6 +36,7 @@ final class FloatingPanelControllerTests: XCTestCase {
             spellingChecker: MockSpellingChecker(delay: .zero),
             translator: MockTranslator(delay: .zero),
             pasteboard: RecordingPasteboardWriter(),
+            applicationTerminator: RecordingApplicationTerminator(),
             debounce: .zero
         )
     }

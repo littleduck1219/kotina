@@ -66,6 +66,16 @@ struct FloatingBarView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("입력 지우기")
             }
+
+            Menu {
+                Button("Kotina 종료", systemImage: "power", action: model.quit)
+                    .keyboardShortcut("q")
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .help("Kotina 메뉴")
+            .accessibilityLabel("Kotina 메뉴")
         }
         .frame(height: FloatingBarMetrics.inputHeight)
         .padding(.horizontal, 18)
