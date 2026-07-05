@@ -9,8 +9,15 @@ struct ImmediateSpellingChecker: SpellingChecking {
     }
 }
 
-struct ImmediateTranslator: Translating {
+struct ImmediateTranslator: TranslationProcessing {
     let result: TranslationResult
+
+    func resourceState() async -> TranslationResourceState {
+        .ready
+    }
+
+    func prepareTranslation() async throws {
+    }
 
     func translate(_ text: String) async throws -> TranslationResult {
         result
@@ -48,7 +55,7 @@ actor RecoveringSpellingChecker: SpellingChecking {
     }
 }
 
-actor RecoveringTranslator: Translating {
+actor RecoveringTranslator: TranslationProcessing {
     private var attempts = 0
     private let result: TranslationResult
 
@@ -56,11 +63,54 @@ actor RecoveringTranslator: Translating {
         self.result = result
     }
 
+    func resourceState() async -> TranslationResourceState {
+        .ready
+    }
+
+    func prepareTranslation() async throws {
+    }
+
     func translate(_ text: String) async throws -> TranslationResult {
         attempts += 1
         if attempts == 1 {
             throw TextProcessingError.unavailable
         }
+        return result
+    }
+}
+
+actor ResourceAwareTranslator: TranslationProcessing {
+    private var state: TranslationResourceState
+    private let stateAfterPreparation: TranslationResourceState
+    private let result: TranslationResult
+    private(set) var preparationCount = 0
+    private(set) var translatedTexts: [String] = []
+
+    init(
+        state: TranslationResourceState,
+        stateAfterPreparation: TranslationResourceState = .ready,
+        result: TranslationResult = .init(
+            sourceLanguage: "ko",
+            targetLanguage: "en",
+            translatedText: "Hello"
+        )
+    ) {
+        self.state = state
+        self.stateAfterPreparation = stateAfterPreparation
+        self.result = result
+    }
+
+    func resourceState() async -> TranslationResourceState {
+        state
+    }
+
+    func prepareTranslation() async throws {
+        preparationCount += 1
+        state = stateAfterPreparation
+    }
+
+    func translate(_ text: String) async throws -> TranslationResult {
+        translatedTexts.append(text)
         return result
     }
 }

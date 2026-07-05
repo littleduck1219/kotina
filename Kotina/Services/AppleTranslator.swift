@@ -30,7 +30,7 @@ struct SystemTranslationAvailabilityChecker: TranslationAvailabilityChecking {
     }
 }
 
-struct AppleTranslator: Translating {
+struct AppleTranslator: TranslationProcessing {
     private let availability: any TranslationAvailabilityChecking
     let broker: TranslationSessionBroker
 
@@ -71,40 +71,4 @@ struct AppleTranslator: Translating {
         }
     }
 
-    @MainActor
-    var configuration: TranslationSession.Configuration? {
-        broker.configuration
-    }
-
-    @MainActor
-    func handle(session: TranslationSession) async {
-        await broker.handle(driver: AppleTranslationSessionDriver(session: session))
-    }
-
-    @MainActor
-    func cancel() {
-        broker.cancel()
-    }
-}
-
-@MainActor
-private final class AppleTranslationSessionDriver: TranslationSessionDriving {
-    private let session: TranslationSession
-
-    init(session: TranslationSession) {
-        self.session = session
-    }
-
-    func prepareTranslation() async throws {
-        try await session.prepareTranslation()
-    }
-
-    func translate(_ text: String) async throws -> TranslationResult {
-        let response = try await session.translate(text)
-        return TranslationResult(
-            sourceLanguage: "ko",
-            targetLanguage: "en",
-            translatedText: response.targetText
-        )
-    }
 }

@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = FloatingBarViewModel(
             spellingChecker: MockSpellingChecker(),
             translator: MockTranslator(),
+            translationBroker: TranslationSessionBroker(),
             pasteboard: SystemPasteboardWriter(),
             applicationTerminator: SystemApplicationTerminator()
         )

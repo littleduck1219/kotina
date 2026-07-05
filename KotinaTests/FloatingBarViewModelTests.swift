@@ -148,6 +148,62 @@ final class FloatingBarViewModelTests: XCTestCase {
         await eventually { model.translationPhase == .success(result) }
     }
 
+    func testNeedsPreparationDoesNotBlockSpellingResult() async {
+        let spelling = SpellingResult(
+            originalText: "몇일",
+            issues: [],
+            correctedText: "며칠"
+        )
+        let translator = ResourceAwareTranslator(state: .needsPreparation)
+        let model = makeModel(
+            spelling: ImmediateSpellingChecker(result: spelling),
+            translator: translator
+        )
+
+        model.sourceText = "몇일"
+
+        await eventually {
+            model.spellingPhase == .success(spelling)
+                && model.translationPhase == .needsPreparation
+        }
+    }
+
+    func testPreparationRetriesCurrentTranslation() async {
+        let result = TranslationResult(
+            sourceLanguage: "ko",
+            targetLanguage: "en",
+            translatedText: "Hello"
+        )
+        let translator = ResourceAwareTranslator(
+            state: .needsPreparation,
+            result: result
+        )
+        let model = makeModel(translator: translator)
+        model.sourceText = "안녕"
+        await eventually { model.translationPhase == .needsPreparation }
+
+        model.prepareTranslation()
+
+        await eventually { model.translationPhase == .success(result) }
+        let preparationCount = await translator.preparationCount
+        let translatedTexts = await translator.translatedTexts
+        XCTAssertEqual(preparationCount, 1)
+        XCTAssertEqual(translatedTexts, ["안녕"])
+    }
+
+    func testClearDuringPreparationResetsTranslationState() async {
+        let translator = ResourceAwareTranslator(state: .needsPreparation)
+        let model = makeModel(translator: translator)
+        model.sourceText = "안녕"
+        await eventually { model.translationPhase == .needsPreparation }
+
+        model.prepareTranslation()
+        model.clear()
+
+        XCTAssertEqual(model.spellingPhase, .idle)
+        XCTAssertEqual(model.translationPhase, .idle)
+    }
+
     func testClearCancelsWorkAndCollapsesPanel() async {
         let model = makeModel(spelling: NonCooperativeSpellingChecker())
         model.sourceText = "오래된 문장"
@@ -165,7 +221,7 @@ final class FloatingBarViewModelTests: XCTestCase {
         spelling: any SpellingChecking = ImmediateSpellingChecker(
             result: .init(originalText: "", issues: [], correctedText: "")
         ),
-        translator: any Translating = ImmediateTranslator(
+        translator: any TranslationProcessing = ImmediateTranslator(
             result: .init(sourceLanguage: "ko", targetLanguage: "en", translatedText: "")
         ),
         pasteboard: RecordingPasteboardWriter = RecordingPasteboardWriter()
@@ -173,6 +229,7 @@ final class FloatingBarViewModelTests: XCTestCase {
         FloatingBarViewModel(
             spellingChecker: spelling,
             translator: translator,
+            translationBroker: TranslationSessionBroker(),
             pasteboard: pasteboard,
             applicationTerminator: RecordingApplicationTerminator(),
             debounce: .zero

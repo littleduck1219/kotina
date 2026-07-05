@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Translation
 
 enum ResultTab: String, CaseIterable, Sendable {
     case spelling
@@ -13,6 +14,17 @@ enum LoadPhase<Value: Equatable & Sendable>: Equatable, Sendable {
     case failure(String)
 }
 
+enum TranslationPhase: Equatable, Sendable {
+    case idle
+    case checkingResources
+    case needsPreparation
+    case preparing
+    case translating
+    case success(TranslationResult)
+    case failure(String)
+    case unavailable
+}
+
 @MainActor
 @Observable
 final class FloatingBarViewModel {
@@ -22,7 +34,7 @@ final class FloatingBarViewModel {
 
     var selectedTab: ResultTab = .spelling
     private(set) var spellingPhase: LoadPhase<SpellingResult> = .idle
-    private(set) var translationPhase: LoadPhase<TranslationResult> = .idle
+    private(set) var translationPhase: TranslationPhase = .idle
     private(set) var validationMessage: String?
     private(set) var copyMessage: String?
 
@@ -41,7 +53,8 @@ final class FloatingBarViewModel {
     }
 
     private let spellingChecker: any SpellingChecking
-    private let translator: any Translating
+    private let translator: any TranslationProcessing
+    private let translationBroker: TranslationSessionBroker
     private let pasteboard: any PasteboardWriting
     private let applicationTerminator: any ApplicationTerminating
     private let debounce: Duration
@@ -54,13 +67,15 @@ final class FloatingBarViewModel {
 
     init(
         spellingChecker: any SpellingChecking,
-        translator: any Translating,
+        translator: any TranslationProcessing,
+        translationBroker: TranslationSessionBroker,
         pasteboard: any PasteboardWriting,
         applicationTerminator: any ApplicationTerminating,
         debounce: Duration = .milliseconds(300)
     ) {
         self.spellingChecker = spellingChecker
         self.translator = translator
+        self.translationBroker = translationBroker
         self.pasteboard = pasteboard
         self.applicationTerminator = applicationTerminator
         self.debounce = debounce
@@ -98,8 +113,44 @@ final class FloatingBarViewModel {
         let text = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard validationMessage == nil, !text.isEmpty else { return }
         translationTask?.cancel()
-        translationPhase = .loading
+        translationPhase = .checkingResources
         startTranslation(text: text, requestID: requestID)
+    }
+
+    func prepareTranslation() {
+        let text = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard validationMessage == nil,
+              !text.isEmpty,
+              translationPhase == .needsPreparation else { return }
+
+        translationTask?.cancel()
+        translationPhase = .preparing
+        let service = translator
+        let currentID = requestID
+        translationTask = Task { [weak self] in
+            do {
+                try await service.prepareTranslation()
+                try Task.checkCancellation()
+                await self?.processTranslation(
+                    text: text,
+                    requestID: currentID,
+                    service: service
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.finishTranslation(.failure(error.localizedDescription), requestID: currentID)
+            }
+        }
+    }
+
+    var translationConfiguration: TranslationSession.Configuration? {
+        translationBroker.configuration
+    }
+
+    func handleTranslationSession(_ session: TranslationSession) async {
+        await translationBroker.handle(session: session)
     }
 
     func copyCorrectedText() {
@@ -133,7 +184,7 @@ final class FloatingBarViewModel {
         }
 
         spellingPhase = .loading
-        translationPhase = .loading
+        translationPhase = .checkingResources
         let currentID = requestID
         debounceTask = Task { [weak self] in
             guard let self else { return }
@@ -168,15 +219,40 @@ final class FloatingBarViewModel {
     private func startTranslation(text: String, requestID: UUID) {
         let service = translator
         translationTask = Task { [weak self] in
+            await self?.processTranslation(
+                text: text,
+                requestID: requestID,
+                service: service
+            )
+        }
+    }
+
+    private func processTranslation(
+        text: String,
+        requestID: UUID,
+        service: any TranslationProcessing
+    ) async {
+        let state = await service.resourceState()
+        guard !Task.isCancelled, self.requestID == requestID else { return }
+
+        switch state {
+        case .checking:
+            finishTranslation(.checkingResources, requestID: requestID)
+        case .needsPreparation:
+            finishTranslation(.needsPreparation, requestID: requestID)
+        case .unavailable:
+            finishTranslation(.unavailable, requestID: requestID)
+        case .ready:
+            finishTranslation(.translating, requestID: requestID)
             do {
                 let result = try await service.translate(text)
                 guard !Task.isCancelled else { return }
-                self?.finishTranslation(.success(result), requestID: requestID)
+                finishTranslation(.success(result), requestID: requestID)
             } catch is CancellationError {
                 return
             } catch {
                 guard !Task.isCancelled else { return }
-                self?.finishTranslation(.failure(error.localizedDescription), requestID: requestID)
+                finishTranslation(.failure(error.localizedDescription), requestID: requestID)
             }
         }
     }
@@ -186,7 +262,7 @@ final class FloatingBarViewModel {
         spellingPhase = phase
     }
 
-    private func finishTranslation(_ phase: LoadPhase<TranslationResult>, requestID: UUID) {
+    private func finishTranslation(_ phase: TranslationPhase, requestID: UUID) {
         guard self.requestID == requestID else { return }
         translationPhase = phase
     }
@@ -205,5 +281,6 @@ final class FloatingBarViewModel {
         debounceTask?.cancel()
         spellingTask?.cancel()
         translationTask?.cancel()
+        translationBroker.cancel()
     }
 }

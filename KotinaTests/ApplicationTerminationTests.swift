@@ -12,6 +12,7 @@ final class ApplicationTerminationTests: XCTestCase {
             translator: ImmediateTranslator(
                 result: .init(sourceLanguage: "ko", targetLanguage: "en", translatedText: "")
             ),
+            translationBroker: TranslationSessionBroker(),
             pasteboard: RecordingPasteboardWriter(),
             applicationTerminator: terminator,
             debounce: .seconds(10)

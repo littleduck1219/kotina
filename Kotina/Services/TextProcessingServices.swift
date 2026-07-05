@@ -8,6 +8,11 @@ protocol Translating: Sendable {
     func translate(_ text: String) async throws -> TranslationResult
 }
 
+protocol TranslationProcessing: Translating {
+    func resourceState() async -> TranslationResourceState
+    func prepareTranslation() async throws
+}
+
 enum TranslationResourceState: Equatable, Sendable {
     case checking
     case needsPreparation

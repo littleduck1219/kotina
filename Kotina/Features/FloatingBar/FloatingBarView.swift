@@ -1,4 +1,5 @@
 import SwiftUI
+import Translation
 
 enum FloatingBarMetrics {
     static let horizontalInset: CGFloat = 10
@@ -37,6 +38,9 @@ struct FloatingBarView: View {
         .animation(.snappy(duration: 0.22), value: model.isExpanded)
         .onChange(of: model.isExpanded) { _, expanded in
             expansionChanged(expanded)
+        }
+        .translationTask(model.translationConfiguration) { session in
+            await model.handleTranslationSession(session)
         }
     }
 
@@ -160,8 +164,19 @@ struct FloatingBarView: View {
     @ViewBuilder
     private var translationContent: some View {
         switch model.translationPhase {
-        case .idle, .loading:
+        case .idle, .checkingResources:
+            loadingView("번역 언어를 확인하고 있어요")
+        case .preparing:
+            loadingView("번역 모델을 준비하고 있어요")
+        case .translating:
             loadingView("영어로 옮기고 있어요")
+        case .needsPreparation:
+            messageView(
+                icon: "arrow.down.circle.fill",
+                title: "한국어→영어 번역 모델이 필요해요.",
+                actionTitle: "번역 모델 준비",
+                action: model.prepareTranslation
+            )
         case let .success(result):
             TranslationResultView(result: result, copy: model.copyTranslation)
         case let .failure(message):
@@ -171,6 +186,13 @@ struct FloatingBarView: View {
                 actionTitle: "다시 번역",
                 action: model.retryTranslation
             )
+        case .unavailable:
+            messageView(
+                icon: "xmark.circle.fill",
+                title: "이 기기에서는 한국어→영어 번역을 사용할 수 없어요.",
+                actionTitle: nil,
+                action: nil
+            )
         }
     }
 
@@ -179,7 +201,12 @@ struct FloatingBarView: View {
         case .spelling:
             if case .loading = model.spellingPhase { return true }
         case .translation:
-            if case .loading = model.translationPhase { return true }
+            switch model.translationPhase {
+            case .checkingResources, .preparing, .translating:
+                return true
+            default:
+                break
+            }
         }
         return false
     }

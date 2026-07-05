@@ -35,6 +35,7 @@ final class FloatingPanelControllerTests: XCTestCase {
         FloatingBarViewModel(
             spellingChecker: MockSpellingChecker(delay: .zero),
             translator: MockTranslator(delay: .zero),
+            translationBroker: TranslationSessionBroker(),
             pasteboard: RecordingPasteboardWriter(),
             applicationTerminator: RecordingApplicationTerminator(),
             debounce: .zero

@@ -1,10 +1,17 @@
 import Foundation
 
-struct MockTranslator: Translating {
+struct MockTranslator: TranslationProcessing {
     let delay: Duration
 
     init(delay: Duration = .milliseconds(240)) {
         self.delay = delay
+    }
+
+    func resourceState() async -> TranslationResourceState {
+        .ready
+    }
+
+    func prepareTranslation() async throws {
     }
 
     func translate(_ text: String) async throws -> TranslationResult {

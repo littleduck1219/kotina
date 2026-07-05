@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import Translation
+@preconcurrency import Translation
 
 @MainActor
 protocol TranslationSessionDriving: AnyObject {
@@ -61,6 +61,10 @@ final class TranslationSessionBroker {
         }
     }
 
+    func handle(session: TranslationSession) async {
+        await handle(driver: AppleTranslationSessionDriver(session: session))
+    }
+
     func cancel() {
         cancelCurrentOperation()
     }
@@ -116,6 +120,28 @@ final class TranslationSessionBroker {
         guard let operation = executingOperation, operation.id == id else { return }
         executingOperation = nil
         operation.resume(throwing: error)
+    }
+}
+
+@MainActor
+private final class AppleTranslationSessionDriver: TranslationSessionDriving {
+    private let session: TranslationSession
+
+    init(session: TranslationSession) {
+        self.session = session
+    }
+
+    func prepareTranslation() async throws {
+        try await session.prepareTranslation()
+    }
+
+    func translate(_ text: String) async throws -> TranslationResult {
+        let response = try await session.translate(text)
+        return TranslationResult(
+            sourceLanguage: "ko",
+            targetLanguage: "en",
+            translatedText: response.targetText
+        )
     }
 }
 
