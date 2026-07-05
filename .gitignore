@@ -23,3 +23,11 @@ Kotina.xcodeproj/
 /docs/ai/
 /.claude/
 /.codex/
+
+# Downloaded Kiwi runtime and model assets
+/Vendor/Kiwi/include/
+/Vendor/Kiwi/lib/
+/Vendor/Kiwi/models/
+
+# Generated beta artifacts
+/release/

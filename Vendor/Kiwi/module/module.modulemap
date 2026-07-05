@@ -1,0 +1,4 @@
+module KiwiC [system] {
+    header "../include/kiwi/capi.h"
+    export *
+}

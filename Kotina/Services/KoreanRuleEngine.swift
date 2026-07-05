@@ -24,8 +24,18 @@ struct KoreanRuleEngine: Sendable {
         self.rules = rules
     }
 
-    func edits(in text: String) -> [CorrectionEdit] {
-        rules.flatMap { $0.edits(in: text) }
+    func edits(in text: String, evidence: [KiwiToken]? = nil) -> [CorrectionEdit] {
+        let candidates = rules.flatMap { $0.edits(in: text) }
+        guard let evidence else { return candidates }
+
+        return candidates.filter { candidate in
+            guard candidate.ruleKind == .dependentNounSu else { return true }
+            return evidence.contains { token in
+                token.form == "수"
+                    && token.tag.hasPrefix("NNB")
+                    && token.range.overlaps(candidate.range)
+            }
+        }
     }
 }
 
@@ -33,6 +43,7 @@ private struct LiteralRule: KoreanCorrectionRule {
     let target: String
     let replacement: String
     let reason: String
+    var ruleKind: CorrectionRuleKind = .lexical
 
     func edits(in text: String) -> [CorrectionEdit] {
         var edits: [CorrectionEdit] = []
@@ -43,7 +54,12 @@ private struct LiteralRule: KoreanCorrectionRule {
                   of: target,
                   range: searchStart..<text.endIndex
               ) {
-            edits.append(CorrectionEdit(range: range, replacement: replacement, reason: reason))
+            edits.append(CorrectionEdit(
+                range: range,
+                replacement: replacement,
+                reason: reason,
+                ruleKind: ruleKind
+            ))
             searchStart = range.upperBound
         }
         return edits
@@ -66,7 +82,8 @@ private struct NegativeDoRule: KoreanCorrectionRule {
             LiteralRule(
                 target: replacement.target,
                 replacement: replacement.replacement,
-                reason: "부정의 뜻인 ‘안’은 뒤의 용언과 띄어 써요."
+                reason: "부정의 뜻인 ‘안’은 뒤의 용언과 띄어 써요.",
+                ruleKind: .negativeSpacing
             ).edits(in: text)
         }
     }
@@ -88,7 +105,8 @@ private struct WaenRule: KoreanCorrectionRule {
                     edits.append(CorrectionEdit(
                         range: index..<nextIndex,
                         replacement: correct,
-                        reason: "‘어찌 된’의 뜻은 ‘웬’으로 적어요."
+                        reason: "‘어찌 된’의 뜻은 ‘웬’으로 적어요.",
+                        ruleKind: .waen
                     ))
                 }
             }
@@ -114,7 +132,8 @@ private struct DependentSuRule: KoreanCorrectionRule {
                     edits.append(CorrectionEdit(
                         range: index..<nextIndex,
                         replacement: " 수",
-                        reason: "의존 명사 ‘수’는 앞말과 띄어 써요."
+                        reason: "의존 명사 ‘수’는 앞말과 띄어 써요.",
+                        ruleKind: .dependentNounSu
                     ))
                 }
             }
@@ -144,7 +163,8 @@ private struct RepeatedSpaceRule: KoreanCorrectionRule {
                 edits.append(CorrectionEdit(
                     range: runStart..<index,
                     replacement: " ",
-                    reason: "연속된 공백은 한 칸으로 줄였어요."
+                    reason: "연속된 공백은 한 칸으로 줄였어요.",
+                    ruleKind: .whitespace
                 ))
             }
         }

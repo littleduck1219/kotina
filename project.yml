@@ -6,12 +6,20 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "15.0"
+    SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Vendor/Kiwi/module"
 targets:
   Kotina:
     type: application
     platform: macOS
     sources:
       - Kotina
+      - path: Vendor/Kiwi/lib/libkiwi.0.dylib
+        buildPhase:
+          copyFiles:
+            destination: frameworks
+      - path: Vendor/Kiwi/models/cong/base
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.littleduck.kotina
@@ -19,6 +27,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_LSUIElement: YES
         CODE_SIGNING_ALLOWED: NO
+        LIBRARY_SEARCH_PATHS: "$(SRCROOT)/Vendor/Kiwi/lib"
+        OTHER_LDFLAGS: "$(inherited) -lkiwi"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
   KotinaTests:
     type: bundle.unit-test
     platform: macOS

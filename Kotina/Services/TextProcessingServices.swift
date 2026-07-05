@@ -10,9 +10,14 @@ protocol Translating: Sendable {
 
 enum TextProcessingError: LocalizedError, Equatable {
     case unavailable
+    case localEngineUnavailable
 
     var errorDescription: String? {
-        "지금은 처리할 수 없어요. 다시 시도해 주세요."
+        switch self {
+        case .unavailable:
+            "지금은 처리할 수 없어요. 다시 시도해 주세요."
+        case .localEngineUnavailable:
+            "로컬 맞춤법 엔진을 준비하지 못했어요. 앱을 다시 설치해 주세요."
+        }
     }
 }
-
