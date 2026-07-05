@@ -30,4 +30,4 @@ Kotina.xcodeproj/
 /Vendor/Kiwi/models/
 
 # Generated beta artifacts
-/release/
+/dist/
