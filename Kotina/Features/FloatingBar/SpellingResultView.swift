@@ -9,7 +9,7 @@ struct SpellingResultView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     if result.issues.isEmpty {
-                        Label("맞춤법 오류를 찾지 못했어요", systemImage: "checkmark.circle.fill")
+                        Label("확신할 수 있는 오류를 찾지 못했어요", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                             .font(.callout.weight(.medium))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,4 +66,3 @@ struct SpellingResultView: View {
         .padding(.bottom, 16)
     }
 }
-

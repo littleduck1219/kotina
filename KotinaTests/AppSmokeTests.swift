@@ -12,4 +12,31 @@ final class AppSmokeTests: XCTestCase {
             "15.0"
         )
     }
+
+    @MainActor
+    func testProductionDependenciesUseLocalServices() throws {
+        let dependencies = try ProductionDependencies.make(bundle: .main)
+        let spellingType = String(reflecting: type(of: dependencies.spellingChecker))
+        let translationType = String(reflecting: type(of: dependencies.translator))
+
+        XCTAssertTrue(spellingType.contains("LocalKoreanChecker"), spellingType)
+        XCTAssertTrue(translationType.contains("AppleTranslator"), translationType)
+        XCTAssertFalse(spellingType.contains("Mock"), spellingType)
+        XCTAssertFalse(translationType.contains("Mock"), translationType)
+
+        let translator = try XCTUnwrap(dependencies.translator as? AppleTranslator)
+        XCTAssertTrue(translator.broker === dependencies.translationBroker)
+    }
+
+    @MainActor
+    func testProductionProofreadingUsesBundledKiwiAndRules() async throws {
+        let dependencies = try ProductionDependencies.make(bundle: .main)
+
+        let corrected = try await dependencies.spellingChecker.check("몇일 안되요")
+        let preserved = try await dependencies.spellingChecker.check("새 문장")
+
+        XCTAssertEqual(corrected.correctedText, "며칠 안 돼요")
+        XCTAssertEqual(preserved.correctedText, "새 문장")
+        XCTAssertTrue(preserved.issues.isEmpty)
+    }
 }

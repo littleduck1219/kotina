@@ -8,12 +8,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
+        let dependencies: ProductionDependencies
+        do {
+            dependencies = try ProductionDependencies.make(bundle: .main)
+        } catch {
+            NSLog("Kotina 초기화 실패: %@", error.localizedDescription)
+            NSApp.terminate(nil)
+            return
+        }
+
         let model = FloatingBarViewModel(
-            spellingChecker: MockSpellingChecker(),
-            translator: MockTranslator(),
-            translationBroker: TranslationSessionBroker(),
-            pasteboard: SystemPasteboardWriter(),
-            applicationTerminator: SystemApplicationTerminator()
+            spellingChecker: dependencies.spellingChecker,
+            translator: dependencies.translator,
+            translationBroker: dependencies.translationBroker,
+            pasteboard: dependencies.pasteboard,
+            applicationTerminator: dependencies.applicationTerminator
         )
         let panelController = FloatingPanelController(model: model)
         panelController.show()

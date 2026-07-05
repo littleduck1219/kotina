@@ -1,6 +1,61 @@
 import Foundation
 @testable import Kotina
 
+struct MockSpellingChecker: SpellingChecking {
+    let delay: Duration
+
+    init(delay: Duration = .milliseconds(180)) {
+        self.delay = delay
+    }
+
+    func check(_ text: String) async throws -> SpellingResult {
+        try await Task.sleep(for: delay)
+
+        guard let mistakeRange = text.range(of: "몇일") else {
+            return SpellingResult(originalText: text, issues: [], correctedText: text)
+        }
+
+        let offset = text.distance(from: text.startIndex, to: mistakeRange.lowerBound)
+        return SpellingResult(
+            originalText: text,
+            issues: [SpellingIssue(
+                range: offset..<(offset + 2),
+                original: "몇일",
+                suggestion: "며칠",
+                reason: "날짜를 나타낼 때는 ‘며칠’로 적어요."
+            )],
+            correctedText: text.replacingOccurrences(of: "몇일", with: "며칠")
+        )
+    }
+}
+
+struct MockTranslator: TranslationProcessing {
+    let delay: Duration
+
+    init(delay: Duration = .milliseconds(240)) {
+        self.delay = delay
+    }
+
+    func resourceState() async -> TranslationResourceState {
+        .ready
+    }
+
+    func prepareTranslation() async throws {
+    }
+
+    func translate(_ text: String) async throws -> TranslationResult {
+        try await Task.sleep(for: delay)
+        let translatedText = text == "오늘 회의는 몇일 뒤로 미뤄졌어요."
+            ? "Today's meeting has been postponed for a few days."
+            : "[Mock translation] \(text)"
+        return TranslationResult(
+            sourceLanguage: "ko",
+            targetLanguage: "en",
+            translatedText: translatedText
+        )
+    }
+}
+
 struct ImmediateSpellingChecker: SpellingChecking {
     let result: SpellingResult
 
