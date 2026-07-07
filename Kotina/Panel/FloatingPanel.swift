@@ -28,7 +28,7 @@ final class FloatingPanel: NSPanel {
 enum FloatingPanelLayout {
     static let width: CGFloat = 720
     static let collapsedHeight: CGFloat = 64
-    static let expandedHeight: CGFloat = 360
+    static let expandedHeight: CGFloat = 260
     static let topInset: CGFloat = 12
 
     static func frame(from currentFrame: NSRect, targetHeight: CGFloat) -> NSRect {

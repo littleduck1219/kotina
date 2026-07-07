@@ -27,11 +27,11 @@ final class FloatingPanelTests: XCTestCase {
 
         let expanded = FloatingPanelLayout.frame(
             from: collapsed,
-            targetHeight: 360
+            targetHeight: FloatingPanelLayout.expandedHeight
         )
 
         XCTAssertEqual(expanded.maxY, collapsed.maxY)
-        XCTAssertEqual(expanded.height, 360)
+        XCTAssertEqual(expanded.height, 260)
         XCTAssertEqual(expanded.width, 720)
     }
 

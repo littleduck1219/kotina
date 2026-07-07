@@ -20,7 +20,7 @@ struct FloatingBarView: View {
 
             if model.isExpanded {
                 resultArea
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.opacity)
             }
         }
         .frame(width: FloatingBarMetrics.contentWidth, alignment: .top)
@@ -46,7 +46,6 @@ struct FloatingBarView: View {
         .shadow(color: .black.opacity(0.34), radius: 24, y: 12)
         .padding(.horizontal, FloatingBarMetrics.horizontalInset)
         .padding(.vertical, FloatingBarMetrics.verticalInset)
-        .animation(.snappy(duration: 0.22), value: model.isExpanded)
         .onChange(of: model.isExpanded) { _, expanded in
             expansionChanged(expanded)
         }

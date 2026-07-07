@@ -16,8 +16,6 @@ struct SpellingResultView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
                             .glassCard()
-                    } else {
-                        correctionReasons
                     }
 
                     correctedTextButton
@@ -26,19 +24,6 @@ struct SpellingResultView: View {
         }
         .padding(.horizontal, 18)
         .padding(.bottom, 16)
-    }
-
-    private var correctionReasons: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
-                Text(issue.reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .glassCard()
     }
 
     private var correctedTextButton: some View {
@@ -87,6 +72,7 @@ struct SpellingResultView: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.green)
                     }
+                    .help(segment.reason ?? "")
                 } else {
                     Text(segment.text)
                         .font(.body.weight(.semibold))
@@ -122,7 +108,8 @@ struct SpellingResultView: View {
                 segments.append(
                     CorrectedSegment(
                         text: String(result.correctedText[correctedCursor..<suggestionEnd]),
-                        original: issue.original
+                        original: issue.original,
+                        reason: issue.reason
                     )
                 )
                 correctedCursor = suggestionEnd
@@ -141,6 +128,7 @@ private struct CorrectedSegment: Identifiable {
     let id = UUID()
     let text: String
     var original: String?
+    var reason: String?
 }
 
 private extension View {
