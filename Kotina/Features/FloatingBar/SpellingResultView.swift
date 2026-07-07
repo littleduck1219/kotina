@@ -3,6 +3,7 @@ import SwiftUI
 struct SpellingResultView: View {
     let result: SpellingResult
     let copy: () -> Void
+    @State private var isHoveringCorrectedText = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -14,55 +15,140 @@ struct SpellingResultView: View {
                             .font(.callout.weight(.medium))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
-                            .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
+                            .glassCard()
                     } else {
-                        ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
-                            VStack(alignment: .leading, spacing: 7) {
-                                HStack(spacing: 8) {
-                                    Text(issue.original)
-                                        .strikethrough()
-                                        .foregroundStyle(.red)
-                                    Image(systemName: "arrow.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                    Text(issue.suggestion)
-                                        .foregroundStyle(.green)
-                                        .fontWeight(.semibold)
-                                }
-                                Text(issue.reason)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
-                            .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
-                        }
+                        correctionReasons
                     }
 
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("교정된 문장")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(result.correctedText)
-                            .font(.body)
-                            .textSelection(.enabled)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
+                    correctedTextButton
                 }
-            }
-
-            HStack {
-                Spacer()
-                Button(action: copy) {
-                    Label("교정문 복사", systemImage: "doc.on.doc")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
         }
         .padding(.horizontal, 18)
         .padding(.bottom, 16)
+    }
+
+    private var correctionReasons: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
+                Text(issue.reason)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .glassCard()
+    }
+
+    private var correctedTextButton: some View {
+        Button(action: copy) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("교정된 문장")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    annotatedCorrectedText
+                }
+                Spacer()
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 22)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(
+                (isHoveringCorrectedText ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.thinMaterial)),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(.white.opacity(isHoveringCorrectedText ? 0.34 : 0.2), lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHoveringCorrectedText = $0 }
+        .help("교정문 복사")
+        .accessibilityLabel("교정문 복사")
+    }
+
+    private var annotatedCorrectedText: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            ForEach(annotatedSegments) { segment in
+                if let original = segment.original {
+                    VStack(spacing: 2) {
+                        Text(original)
+                            .font(.caption2.weight(.semibold))
+                            .strikethrough()
+                            .foregroundStyle(.red)
+                        Text(segment.text)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                } else {
+                    Text(segment.text)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+            }
+        }
+        .lineLimit(2)
+    }
+
+    private var annotatedSegments: [CorrectedSegment] {
+        var segments: [CorrectedSegment] = []
+        var originalCursor = 0
+        var correctedCursor = result.correctedText.startIndex
+
+        for issue in result.issues {
+            let unchangedCount = issue.range.lowerBound - originalCursor
+            if unchangedCount > 0,
+               let unchangedEnd = result.correctedText.index(
+                correctedCursor,
+                offsetBy: unchangedCount,
+                limitedBy: result.correctedText.endIndex
+               ) {
+                segments.append(CorrectedSegment(text: String(result.correctedText[correctedCursor..<unchangedEnd])))
+                correctedCursor = unchangedEnd
+            }
+
+            if let suggestionEnd = result.correctedText.index(
+                correctedCursor,
+                offsetBy: issue.suggestion.count,
+                limitedBy: result.correctedText.endIndex
+            ) {
+                segments.append(
+                    CorrectedSegment(
+                        text: String(result.correctedText[correctedCursor..<suggestionEnd]),
+                        original: issue.original
+                    )
+                )
+                correctedCursor = suggestionEnd
+            }
+            originalCursor = issue.range.upperBound
+        }
+
+        if correctedCursor < result.correctedText.endIndex {
+            segments.append(CorrectedSegment(text: String(result.correctedText[correctedCursor...])))
+        }
+        return segments
+    }
+}
+
+private struct CorrectedSegment: Identifiable {
+    let id = UUID()
+    let text: String
+    var original: String?
+}
+
+private extension View {
+    func glassCard() -> some View {
+        background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(.white.opacity(0.18), lineWidth: 1)
+            }
     }
 }

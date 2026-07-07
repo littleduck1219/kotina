@@ -30,9 +30,20 @@ struct FloatingBarView: View {
         )
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 1)
+                .stroke(.white.opacity(0.28), lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.28), radius: 20, y: 10)
+        .overlay(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [.white.opacity(0.16), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .center
+                    )
+                )
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(0.34), radius: 24, y: 12)
         .padding(.horizontal, FloatingBarMetrics.horizontalInset)
         .padding(.vertical, FloatingBarMetrics.verticalInset)
         .animation(.snappy(duration: 0.22), value: model.isExpanded)

@@ -19,6 +19,7 @@ final class FloatingPanelTests: XCTestCase {
         XCTAssertTrue(panel.canBecomeKey)
         XCTAssertFalse(panel.canBecomeMain)
         XCTAssertFalse(panel.isOpaque)
+        XCTAssertTrue(panel.isMovableByWindowBackground)
     }
 
     func testExpandedFramePreservesTopEdge() {
