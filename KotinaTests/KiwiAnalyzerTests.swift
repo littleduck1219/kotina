@@ -9,9 +9,8 @@ final class KiwiAnalyzerTests: XCTestCase {
     }
 
     func testOfficialModelAnalyzesTextWithValidRanges() throws {
-        guard let modelPath = ProcessInfo.processInfo.environment["KOTINA_KIWI_MODEL_PATH"] else {
-            throw XCTSkip("KOTINA_KIWI_MODEL_PATH is not set")
-        }
+        let modelPath = try ProcessInfo.processInfo.environment["KOTINA_KIWI_MODEL_PATH"]
+            ?? XCTUnwrap(Bundle.main.url(forResource: "base", withExtension: nil)?.path)
         let text = "아버지가방에들어가신다"
         let analyzer = try KiwiAnalyzer(modelPath: modelPath)
 
