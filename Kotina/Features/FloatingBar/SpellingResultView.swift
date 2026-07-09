@@ -18,7 +18,7 @@ struct SpellingResultView: View {
                             .glassCard()
                     }
 
-                    correctedTextButton
+                    correctedTextCard
                 }
             }
         }
@@ -26,37 +26,36 @@ struct SpellingResultView: View {
         .padding(.bottom, 16)
     }
 
-    private var correctedTextButton: some View {
-        Button(action: copy) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("교정된 문장")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    annotatedCorrectedText
-                }
-                Spacer()
+    private var correctedTextCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("교정된 문장")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                annotatedCorrectedText
+            }
+            Spacer()
+            Button(action: copy) {
                 Image(systemName: "doc.on.doc")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 22)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .background(
-                (isHoveringCorrectedText ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.thinMaterial)),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(.white.opacity(isHoveringCorrectedText ? 0.34 : 0.2), lineWidth: 1)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .padding(.top, 22)
+            .help("교정문 복사")
+            .accessibilityLabel("교정문 복사")
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            (isHoveringCorrectedText ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.thinMaterial)),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(isHoveringCorrectedText ? 0.34 : 0.2), lineWidth: 1)
+        }
         .onHover { isHoveringCorrectedText = $0 }
-        .help("교정문 복사")
-        .accessibilityLabel("교정문 복사")
     }
 
     private var annotatedCorrectedText: some View {
