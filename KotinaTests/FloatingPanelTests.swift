@@ -6,7 +6,12 @@ import XCTest
 final class FloatingPanelTests: XCTestCase {
     func testPanelFloatsAcrossSpacesWithoutHidingOnDeactivate() {
         let panel = FloatingPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 64)
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: FloatingPanelLayout.width,
+                height: FloatingPanelLayout.collapsedHeight
+            )
         )
 
         XCTAssertEqual(panel.level, .floating)
@@ -23,7 +28,12 @@ final class FloatingPanelTests: XCTestCase {
     }
 
     func testExpandedFramePreservesTopEdge() {
-        let collapsed = NSRect(x: 100, y: 800, width: 720, height: 64)
+        let collapsed = NSRect(
+            x: 100,
+            y: 800,
+            width: FloatingPanelLayout.width,
+            height: FloatingPanelLayout.collapsedHeight
+        )
 
         let expanded = FloatingPanelLayout.frame(
             from: collapsed,
@@ -31,8 +41,8 @@ final class FloatingPanelTests: XCTestCase {
         )
 
         XCTAssertEqual(expanded.maxY, collapsed.maxY)
-        XCTAssertEqual(expanded.height, 260)
-        XCTAssertEqual(expanded.width, 720)
+        XCTAssertEqual(expanded.height, FloatingPanelLayout.expandedHeight)
+        XCTAssertEqual(expanded.width, FloatingPanelLayout.width)
     }
 
     func testTopCenteredFrameUsesVisibleScreenBounds() {
@@ -40,11 +50,14 @@ final class FloatingPanelTests: XCTestCase {
 
         let frame = FloatingPanelLayout.topCenteredFrame(
             screen: screen,
-            panelSize: NSSize(width: 720, height: 64),
-            topInset: 12
+            panelSize: NSSize(
+                width: FloatingPanelLayout.width,
+                height: FloatingPanelLayout.collapsedHeight
+            ),
+            topInset: FloatingPanelLayout.topInset
         )
 
-        XCTAssertEqual(frame.origin.x, 360)
-        XCTAssertEqual(frame.maxY, 888)
+        XCTAssertEqual(frame.origin.x, (1_440 - FloatingPanelLayout.width) / 2)
+        XCTAssertEqual(frame.maxY, 900 - FloatingPanelLayout.topInset)
     }
 }

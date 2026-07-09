@@ -13,7 +13,10 @@ final class FloatingPanelControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.panel.frame.width, FloatingPanelLayout.width)
         XCTAssertEqual(controller.panel.frame.height, FloatingPanelLayout.collapsedHeight)
-        XCTAssertEqual(controller.panel.frame.origin.x, 360)
+        XCTAssertEqual(
+            controller.panel.frame.origin.x,
+            (1_440 - FloatingPanelLayout.width) / 2
+        )
         XCTAssertEqual(controller.panel.frame.maxY, 888)
         XCTAssertTrue(controller.panel.contentView is NSHostingView<FloatingBarView>)
     }

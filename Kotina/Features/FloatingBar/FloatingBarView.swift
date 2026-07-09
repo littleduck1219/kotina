@@ -8,8 +8,8 @@ enum PanelResizeEvent {
 }
 
 enum FloatingBarMetrics {
-    static let horizontalInset: CGFloat = 10
-    static let verticalInset: CGFloat = 4
+    static let horizontalInset: CGFloat = 22
+    static let verticalInset: CGFloat = 14
     static let contentWidth = FloatingPanelLayout.width - horizontalInset * 2
     static let inputHeight = FloatingPanelLayout.collapsedHeight - verticalInset * 2
     static let resultHeight = FloatingPanelLayout.expandedHeight
@@ -22,6 +22,7 @@ struct FloatingBarView: View {
     let stayOnTopChanged: (Bool) -> Void
     let resizeEvent: (PanelResizeEvent) -> Void
     @State private var isHoveringModeButton = false
+    @State private var isHoveringResizeCorner = false
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -53,13 +54,12 @@ struct FloatingBarView: View {
                 )
                 .allowsHitTesting(false)
         }
-        // 패널 여백(가로 10pt·세로 4pt)을 넘는 그림자는 사각형으로 잘려 보이므로 여백 안에 들어가게 유지한다.
+        // 패널 외곽의 투명 여백 안에 그림자와 hover-only 리사이즈 그립을 둔다.
         .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
         .padding(.horizontal, FloatingBarMetrics.horizontalInset)
         .padding(.vertical, FloatingBarMetrics.verticalInset)
         .overlay(alignment: .bottomTrailing) {
-            resizeGrip
-                .offset(x: 3, y: 3)
+            resizeCorner
         }
         .onChange(of: model.isExpanded) { _, expanded in
             expansionChanged(expanded)
@@ -200,6 +200,26 @@ struct FloatingBarView: View {
             }
             .help("드래그해서 크기 조절")
             .accessibilityLabel("크기 조절")
+    }
+
+    private var resizeCorner: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Color.clear
+
+            if isHoveringResizeCorner {
+                resizeGrip
+                    .padding(.trailing, 2)
+                    .padding(.bottom, 2)
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: 54, height: 54)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHoveringResizeCorner = hovering
+            }
+        }
     }
 
     private var resultArea: some View {

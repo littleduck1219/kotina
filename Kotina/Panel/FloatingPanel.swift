@@ -34,11 +34,11 @@ final class FloatingPanel: NSPanel {
 }
 
 enum FloatingPanelLayout {
-    static let width: CGFloat = 720
-    static let collapsedHeight: CGFloat = 64
-    static let expandedHeight: CGFloat = 260
+    static let width: CGFloat = 744
+    static let collapsedHeight: CGFloat = 84
+    static let expandedHeight: CGFloat = 280
     static let topInset: CGFloat = 12
-    static let minWidth: CGFloat = 320
+    static let minWidth: CGFloat = 360
     static let maxWidth: CGFloat = 1_600
     static let minExpandedHeight: CGFloat = 140
     static let maxExpandedHeight: CGFloat = 700
