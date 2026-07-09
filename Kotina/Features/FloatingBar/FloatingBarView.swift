@@ -1,6 +1,12 @@
 import SwiftUI
 import Translation
 
+enum PanelResizeEvent {
+    case began
+    case changed(width: CGFloat, height: CGFloat)
+    case ended
+}
+
 enum FloatingBarMetrics {
     static let horizontalInset: CGFloat = 10
     static let verticalInset: CGFloat = 4
@@ -13,6 +19,10 @@ enum FloatingBarMetrics {
 struct FloatingBarView: View {
     @Bindable var model: FloatingBarViewModel
     let expansionChanged: (Bool) -> Void
+    let stayOnTopChanged: (Bool) -> Void
+    let resizeEvent: (PanelResizeEvent) -> Void
+    @State private var isHoveringModeButton = false
+    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,31 +33,40 @@ struct FloatingBarView: View {
                     .transition(.opacity)
             }
         }
-        .frame(width: FloatingBarMetrics.contentWidth, alignment: .top)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-        )
+        // 접힘·펼침 애니메이션 중에도 입력 바가 창 상단에 고정되도록 세로로 꽉 채운 뒤 상단 정렬한다.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background {
+            GlassBackground(cornerRadius: 18)
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(.white.opacity(0.28), lineWidth: 1)
+                .stroke(.white.opacity(0.22), lineWidth: 1)
         }
         .overlay(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [.white.opacity(0.16), .clear],
+                        colors: [.white.opacity(0.09), .clear],
                         startPoint: .topLeading,
                         endPoint: .center
                     )
                 )
                 .allowsHitTesting(false)
         }
-        .shadow(color: .black.opacity(0.34), radius: 24, y: 12)
+        .overlay(alignment: .bottomTrailing) {
+            resizeGrip
+                .padding(.trailing, 5)
+                .padding(.bottom, 3)
+        }
+        // 패널 여백(가로 10pt·세로 4pt)을 넘는 그림자는 사각형으로 잘려 보이므로 여백 안에 들어가게 유지한다.
+        .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
         .padding(.horizontal, FloatingBarMetrics.horizontalInset)
         .padding(.vertical, FloatingBarMetrics.verticalInset)
         .onChange(of: model.isExpanded) { _, expanded in
             expansionChanged(expanded)
+        }
+        .onChange(of: model.staysOnTop) { _, staysOnTop in
+            stayOnTopChanged(staysOnTop)
         }
         .translationTask(model.translationConfiguration) { session in
             await model.handleTranslationSession(session)
@@ -56,14 +75,26 @@ struct FloatingBarView: View {
 
     private var inputBar: some View {
         HStack(spacing: 12) {
-            appMark
+            modeButton
 
             TextField(
                 "텍스트를 입력하거나 붙여넣으세요",
                 text: $model.sourceText
             )
             .textFieldStyle(.plain)
-            .font(.system(size: 15, weight: .medium))
+            .font(.system(size: 15 * model.textSize.factor, weight: .medium))
+            .focused($isInputFocused)
+            // 편집 중이 아닐 때는 긴 텍스트를 지우기 버튼 앞에서 …으로 줄인다.
+            .foregroundStyle(showsTruncatedInput ? AnyShapeStyle(.clear) : AnyShapeStyle(.primary))
+            .overlay(alignment: .leading) {
+                if showsTruncatedInput {
+                    Text(model.sourceText)
+                        .font(.system(size: 15 * model.textSize.factor, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .allowsHitTesting(false)
+                }
+            }
             .accessibilityLabel("검사할 텍스트")
 
             if activeTabIsLoading {
@@ -82,6 +113,13 @@ struct FloatingBarView: View {
             }
 
             Menu {
+                Toggle("항상 위에 표시", isOn: $model.staysOnTop)
+                Picker("글자 크기", selection: $model.textSize) {
+                    ForEach(TextSizeOption.allCases, id: \.self) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                Divider()
                 Button("Kotina 종료", systemImage: "power", action: model.quit)
                     .keyboardShortcut("q")
             } label: {
@@ -95,16 +133,68 @@ struct FloatingBarView: View {
         .padding(.horizontal, 18)
     }
 
-    private var appMark: some View {
-        Image(systemName: "character.cursor.ibeam")
-            .font(.system(size: 14, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: 30, height: 30)
-            .background(
-                Color.accentColor,
-                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
-            )
-            .accessibilityHidden(true)
+    private var modeButton: some View {
+        Button(action: toggleModeAnimated) {
+            Image(systemName: model.mode == .spelling ? "checkmark.seal.fill" : "globe")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(
+                    model.mode == .spelling ? Color.accentColor : Color.indigo,
+                    in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHoveringModeButton = hovering
+            }
+        }
+        // 레이아웃을 밀지 않도록 안내는 떠 있는 오버레이로 보여준다.
+        .overlay(alignment: .leading) {
+            if isHoveringModeButton {
+                Text(model.mode == .spelling ? "번역 모드로 전환" : "맞춤법 모드로 전환")
+                    .font(.caption.weight(.semibold))
+                    .fixedSize()
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(.regularMaterial, in: Capsule())
+                    .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
+                    .offset(x: 38)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
+        }
+        .zIndex(1)
+        .help(
+            model.mode == .spelling
+                ? "맞춤법 모드 · 누르면 번역 모드로 전환"
+                : "번역 모드 · 누르면 맞춤법 모드로 전환"
+        )
+        .accessibilityLabel(
+            model.mode == .spelling
+                ? "맞춤법 모드, 누르면 번역 모드로 전환"
+                : "번역 모드, 누르면 맞춤법 모드로 전환"
+        )
+    }
+
+    private func toggleModeAnimated() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            model.toggleMode()
+        }
+    }
+
+    private var resizeGrip: some View {
+        PanelResizeGrip(onEvent: resizeEvent)
+            .frame(width: 22, height: 22)
+            .overlay {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .allowsHitTesting(false)
+            }
+            .help("드래그해서 크기 조절")
+            .accessibilityLabel("크기 조절")
     }
 
     private var resultArea: some View {
@@ -112,8 +202,9 @@ struct FloatingBarView: View {
             Divider().opacity(0.35)
 
             HStack(spacing: 8) {
-                tabButton(.spelling, title: spellingTabTitle)
-                tabButton(.translation, title: "번역")
+                Text(modeTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
                 Spacer()
 
                 if let copyMessage = model.copyMessage {
@@ -141,12 +232,12 @@ struct FloatingBarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(height: FloatingBarMetrics.resultHeight)
+        .frame(maxHeight: .infinity)
     }
 
     @ViewBuilder
     private var selectedResult: some View {
-        switch model.selectedTab {
+        switch model.mode {
         case .spelling:
             spellingContent
         case .translation:
@@ -160,7 +251,11 @@ struct FloatingBarView: View {
         case .idle, .loading:
             loadingView("맞춤법을 살펴보고 있어요")
         case let .success(result):
-            SpellingResultView(result: result, copy: model.copyCorrectedText)
+            SpellingResultView(
+                result: result,
+                textScale: model.textSize.factor,
+                copy: model.copyCorrectedText
+            )
         case let .failure(message):
             messageView(
                 icon: "arrow.clockwise.circle.fill",
@@ -188,7 +283,11 @@ struct FloatingBarView: View {
                 action: model.prepareTranslation
             )
         case let .success(result):
-            TranslationResultView(result: result, copy: model.copyTranslation)
+            TranslationResultView(
+                result: result,
+                textScale: model.textSize.factor,
+                copy: model.copyTranslation
+            )
         case let .failure(message):
             messageView(
                 icon: "arrow.clockwise.circle.fill",
@@ -207,7 +306,7 @@ struct FloatingBarView: View {
     }
 
     private var activeTabIsLoading: Bool {
-        switch model.selectedTab {
+        switch model.mode {
         case .spelling:
             if case .loading = model.spellingPhase { return true }
         case .translation:
@@ -221,36 +320,27 @@ struct FloatingBarView: View {
         return false
     }
 
-    private var spellingTabTitle: String {
-        let count = model.currentSpellingResult?.issues.count
-        return count.map { "맞춤법 · \($0)" } ?? "맞춤법"
+    private var modeTitle: String {
+        switch model.mode {
+        case .spelling:
+            let count = model.currentSpellingResult?.issues.count
+            return count.map { "맞춤법 · \($0)" } ?? "맞춤법"
+        case .translation:
+            return "번역"
+        }
     }
 
-    private func tabButton(_ tab: ResultTab, title: String) -> some View {
-        Button {
-            model.selectedTab = tab
-        } label: {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(model.selectedTab == tab ? .primary : .secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(
-                    model.selectedTab == tab
-                        ? Color.primary.opacity(0.09)
-                        : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-        }
-        .buttonStyle(.plain)
+    private var showsTruncatedInput: Bool {
+        !isInputFocused && !model.sourceText.isEmpty
     }
 
     private func loadingView(_ title: String) -> some View {
         VStack(spacing: 10) {
             ProgressView()
+                .tint(.white)
             Text(title)
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white)
         }
     }
 

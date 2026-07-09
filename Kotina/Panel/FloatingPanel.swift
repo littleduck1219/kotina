@@ -17,12 +17,20 @@ final class FloatingPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false
-        isMovableByWindowBackground = true
+        // 서버 측 배경 드래그가 그립 리사이즈와 충돌하므로 끄고,
+        // 창 이동은 컨텐츠의 WindowDragGesture가 담당한다.
+        isMovableByWindowBackground = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
     }
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    // 버튼·입력창·그립이 소비하지 않은 배경 클릭이 창까지 올라오면 창 이동을 시작한다.
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: event)
+        performDrag(with: event)
+    }
 }
 
 enum FloatingPanelLayout {
@@ -30,6 +38,10 @@ enum FloatingPanelLayout {
     static let collapsedHeight: CGFloat = 64
     static let expandedHeight: CGFloat = 260
     static let topInset: CGFloat = 12
+    static let minWidth: CGFloat = 320
+    static let maxWidth: CGFloat = 1_600
+    static let minExpandedHeight: CGFloat = 140
+    static let maxExpandedHeight: CGFloat = 700
 
     static func frame(from currentFrame: NSRect, targetHeight: CGFloat) -> NSRect {
         NSRect(

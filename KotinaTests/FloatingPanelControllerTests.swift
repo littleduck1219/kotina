@@ -31,6 +31,88 @@ final class FloatingPanelControllerTests: XCTestCase {
         XCTAssertEqual(controller.panel.frame.maxY, initialTop)
     }
 
+    func testCollapsedGripDragChangesWidthOnly() {
+        let controller = FloatingPanelController(
+            model: makeModel(),
+            screenFrame: NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+        let initialTop = controller.panel.frame.maxY
+
+        controller.handleResizeEvent(.began)
+        controller.handleResizeEvent(.changed(width: 150, height: 80))
+        controller.handleResizeEvent(.ended)
+
+        XCTAssertEqual(controller.panel.frame.width, FloatingPanelLayout.width + 150)
+        XCTAssertEqual(controller.panel.frame.height, FloatingPanelLayout.collapsedHeight)
+        XCTAssertEqual(controller.panel.frame.maxY, initialTop)
+    }
+
+    func testExpandedGripDragAdjustsWidthAndHeightIndependently() {
+        let controller = FloatingPanelController(
+            model: makeModel(),
+            screenFrame: NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+        controller.setExpanded(true, animated: false)
+
+        controller.handleResizeEvent(.began)
+        controller.handleResizeEvent(.changed(width: -100, height: 120))
+        controller.handleResizeEvent(.ended)
+
+        XCTAssertEqual(controller.panel.frame.width, FloatingPanelLayout.width - 100)
+        XCTAssertEqual(controller.panel.frame.height, FloatingPanelLayout.expandedHeight + 120)
+    }
+
+    func testUserResizedExpandedHeightIsRemembered() {
+        let controller = FloatingPanelController(
+            model: makeModel(),
+            screenFrame: NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+        controller.setExpanded(true, animated: false)
+
+        controller.handleResizeEvent(.began)
+        controller.handleResizeEvent(.changed(width: 0, height: 140))
+        controller.handleResizeEvent(.ended)
+
+        controller.setExpanded(false, animated: false)
+        XCTAssertEqual(controller.panel.frame.height, FloatingPanelLayout.collapsedHeight)
+
+        controller.setExpanded(true, animated: false)
+        XCTAssertEqual(
+            controller.panel.frame.height,
+            FloatingPanelLayout.expandedHeight + 140
+        )
+    }
+
+    func testGripDragClampsToLimits() {
+        let controller = FloatingPanelController(
+            model: makeModel(),
+            screenFrame: NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+        controller.setExpanded(true, animated: false)
+
+        controller.handleResizeEvent(.began)
+        controller.handleResizeEvent(.changed(width: -5_000, height: 5_000))
+        controller.handleResizeEvent(.ended)
+
+        XCTAssertEqual(controller.panel.frame.width, FloatingPanelLayout.minWidth)
+        XCTAssertEqual(controller.panel.frame.height, FloatingPanelLayout.maxExpandedHeight)
+    }
+
+    func testStaysOnTopToggleAdjustsWindowLevel() {
+        let controller = FloatingPanelController(
+            model: makeModel(),
+            screenFrame: NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+
+        XCTAssertEqual(controller.panel.level, .floating)
+
+        controller.setStaysOnTop(false)
+        XCTAssertEqual(controller.panel.level, .normal)
+
+        controller.setStaysOnTop(true)
+        XCTAssertEqual(controller.panel.level, .floating)
+    }
+
     private func makeModel() -> FloatingBarViewModel {
         FloatingBarViewModel(
             spellingChecker: MockSpellingChecker(delay: .zero),

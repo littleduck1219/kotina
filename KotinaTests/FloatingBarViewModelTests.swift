@@ -217,6 +217,43 @@ final class FloatingBarViewModelTests: XCTestCase {
         XCTAssertEqual(model.translationPhase, .idle)
     }
 
+    func testModeToggleSwitchesAndStaysFixed() async {
+        let model = makeModel()
+
+        XCTAssertEqual(model.mode, .spelling)
+
+        model.toggleMode()
+        XCTAssertEqual(model.mode, .translation)
+
+        model.sourceText = "안녕하세요"
+        await Task.yield()
+        model.clear()
+
+        XCTAssertEqual(model.mode, .translation)
+
+        model.toggleMode()
+        XCTAssertEqual(model.mode, .spelling)
+    }
+
+    func testStaysOnTopDefaultsToTrue() {
+        XCTAssertTrue(makeModel().staysOnTop)
+    }
+
+    func testTextSizePersistsAcrossModels() throws {
+        let suiteName = "kotina.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let model = makeModel(defaults: defaults)
+        XCTAssertEqual(model.textSize, .medium)
+
+        model.textSize = .large
+
+        let restoredModel = makeModel(defaults: defaults)
+        XCTAssertEqual(restoredModel.textSize, .large)
+        XCTAssertEqual(restoredModel.textSize.factor, 1.2)
+    }
+
     private func makeModel(
         spelling: any SpellingChecking = ImmediateSpellingChecker(
             result: .init(originalText: "", issues: [], correctedText: "")
@@ -224,7 +261,8 @@ final class FloatingBarViewModelTests: XCTestCase {
         translator: any TranslationProcessing = ImmediateTranslator(
             result: .init(sourceLanguage: "ko", targetLanguage: "en", translatedText: "")
         ),
-        pasteboard: RecordingPasteboardWriter = RecordingPasteboardWriter()
+        pasteboard: RecordingPasteboardWriter = RecordingPasteboardWriter(),
+        defaults: UserDefaults = .standard
     ) -> FloatingBarViewModel {
         FloatingBarViewModel(
             spellingChecker: spelling,
@@ -232,7 +270,8 @@ final class FloatingBarViewModelTests: XCTestCase {
             translationBroker: TranslationSessionBroker(),
             pasteboard: pasteboard,
             applicationTerminator: RecordingApplicationTerminator(),
-            debounce: .zero
+            debounce: .zero,
+            defaults: defaults
         )
     }
 

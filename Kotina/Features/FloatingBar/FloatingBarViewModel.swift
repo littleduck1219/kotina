@@ -2,9 +2,31 @@ import Foundation
 import Observation
 import Translation
 
-enum ResultTab: String, CaseIterable, Sendable {
+enum ProcessingMode: String, CaseIterable, Sendable {
     case spelling
     case translation
+}
+
+enum TextSizeOption: String, CaseIterable, Sendable {
+    case small
+    case medium
+    case large
+
+    var label: String {
+        switch self {
+        case .small: "작게"
+        case .medium: "중간"
+        case .large: "크게"
+        }
+    }
+
+    var factor: CGFloat {
+        switch self {
+        case .small: 0.85
+        case .medium: 1
+        case .large: 1.2
+        }
+    }
 }
 
 enum LoadPhase<Value: Equatable & Sendable>: Equatable, Sendable {
@@ -32,7 +54,11 @@ final class FloatingBarViewModel {
         didSet { sourceDidChange() }
     }
 
-    var selectedTab: ResultTab = .spelling
+    private(set) var mode: ProcessingMode = .spelling
+    var staysOnTop = true
+    var textSize: TextSizeOption = .medium {
+        didSet { defaults.set(textSize.rawValue, forKey: Self.textSizeKey) }
+    }
     private(set) var spellingPhase: LoadPhase<SpellingResult> = .idle
     private(set) var translationPhase: TranslationPhase = .idle
     private(set) var validationMessage: String?
@@ -58,6 +84,8 @@ final class FloatingBarViewModel {
     private let pasteboard: any PasteboardWriting
     private let applicationTerminator: any ApplicationTerminating
     private let debounce: Duration
+    private let defaults: UserDefaults
+    private static let textSizeKey = "kotina.textSize"
 
     private var requestID = UUID()
     private var debounceTask: Task<Void, Never>?
@@ -71,7 +99,8 @@ final class FloatingBarViewModel {
         translationBroker: TranslationSessionBroker,
         pasteboard: any PasteboardWriting,
         applicationTerminator: any ApplicationTerminating,
-        debounce: Duration = .milliseconds(300)
+        debounce: Duration = .milliseconds(300),
+        defaults: UserDefaults = .standard
     ) {
         self.spellingChecker = spellingChecker
         self.translator = translator
@@ -79,10 +108,19 @@ final class FloatingBarViewModel {
         self.pasteboard = pasteboard
         self.applicationTerminator = applicationTerminator
         self.debounce = debounce
+        self.defaults = defaults
+        if let rawTextSize = defaults.string(forKey: Self.textSizeKey),
+           let savedTextSize = TextSizeOption(rawValue: rawTextSize) {
+            self.textSize = savedTextSize
+        }
     }
 
     func clear() {
         sourceText = ""
+    }
+
+    func toggleMode() {
+        mode = mode == .spelling ? .translation : .spelling
     }
 
     func shutdown() {

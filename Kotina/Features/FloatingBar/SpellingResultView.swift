@@ -2,23 +2,18 @@ import SwiftUI
 
 struct SpellingResultView: View {
     let result: SpellingResult
+    var textScale: CGFloat = 1
     let copy: () -> Void
     @State private var isHoveringCorrectedText = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    correctedTextCard
-                }
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.bottom, 16)
+        correctedTextCard
+            .padding(.horizontal, 18)
+            .padding(.bottom, 16)
     }
 
     private var correctedTextCard: some View {
-        HStack(alignment: .top, spacing: 12) {
+        Button(action: copy) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     Text("교정된 문장")
@@ -28,32 +23,40 @@ struct SpellingResultView: View {
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.green)
                     }
+                    Spacer()
+                    if isHoveringCorrectedText {
+                        Label("누르면 복사", systemImage: "doc.on.doc")
+                            .font(.caption2.weight(.semibold))
+                            .transition(.opacity)
+                    }
                 }
                 .foregroundStyle(.secondary)
-                annotatedCorrectedText
+
+                ScrollView {
+                    annotatedCorrectedText
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-            Spacer()
-            Button(action: copy) {
-                Image(systemName: "doc.on.doc")
-                    .font(.system(size: 15, weight: .semibold))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(14)
+            .background(
+                (isHoveringCorrectedText ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.ultraThinMaterial)),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(.white.opacity(isHoveringCorrectedText ? 0.28 : 0.16), lineWidth: 1)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .padding(.top, 22)
-            .help("교정문 복사")
-            .accessibilityLabel("교정문 복사")
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(
-            (isHoveringCorrectedText ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.thinMaterial)),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(isHoveringCorrectedText ? 0.34 : 0.2), lineWidth: 1)
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHoveringCorrectedText = hovering
+            }
         }
-        .onHover { isHoveringCorrectedText = $0 }
+        .help("교정문 복사")
+        .accessibilityLabel("교정문 복사")
     }
 
     private var annotatedCorrectedText: some View {
@@ -62,18 +65,18 @@ struct SpellingResultView: View {
                 if let original = segment.original {
                     VStack(spacing: 2) {
                         Text(original)
-                            .font(.caption2.weight(.semibold))
+                            .font(.system(size: 10 * textScale, weight: .semibold))
                             .strikethrough()
                             .foregroundStyle(.red)
                         Text(segment.text)
-                            .font(.body.weight(.semibold))
+                            .font(.system(size: 15 * textScale, weight: .semibold))
                             .foregroundStyle(.green)
                     }
                     .help(segment.reason ?? "")
                 } else {
                     Text(segment.text)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 15 * textScale, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
             }
         }
