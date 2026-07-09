@@ -16,7 +16,7 @@ struct ProductionDependencies {
         let analyzer = try KiwiAnalyzer(modelPath: modelURL.path)
         let broker = TranslationSessionBroker()
         return ProductionDependencies(
-            spellingChecker: LocalKoreanChecker(analyzer: analyzer),
+            spellingChecker: LocalKoreanChecker(analyzer: analyzer, spacer: analyzer),
             translator: AppleTranslator(broker: broker),
             translationBroker: broker,
             pasteboard: SystemPasteboardWriter(),

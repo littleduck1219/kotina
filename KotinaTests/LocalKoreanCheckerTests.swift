@@ -44,6 +44,25 @@ final class LocalKoreanCheckerTests: XCTestCase {
         XCTAssertEqual(result.correctedText, text)
         XCTAssertTrue(result.issues.isEmpty)
     }
+
+    func testSpacerAddsGeneralSpacingCorrections() async throws {
+        let spacer = StaticSpacer(map: ["오늘회의는 미뤄졌어요.": "오늘 회의는 미뤄졌어요."])
+
+        let result = try await LocalKoreanChecker(spacer: spacer).check("오늘회의는 미뤄졌어요.")
+
+        XCTAssertEqual(result.correctedText, "오늘 회의는 미뤄졌어요.")
+        XCTAssertEqual(result.issues.count, 1)
+    }
+
+    func testRuleEditWinsOverOverlappingSpacingEdit() async throws {
+        let spacer = StaticSpacer(map: ["안됩니다": "안 됩니다"])
+
+        let result = try await LocalKoreanChecker(spacer: spacer).check("안됩니다")
+
+        XCTAssertEqual(result.correctedText, "안 됩니다")
+        XCTAssertEqual(result.issues.count, 1)
+        XCTAssertEqual(result.issues[0].reason, "부정의 뜻인 ‘안’은 뒤의 용언과 띄어 써요.")
+    }
 }
 
 private struct StaticKoreanAnalyzer: KoreanAnalyzing {
@@ -51,5 +70,13 @@ private struct StaticKoreanAnalyzer: KoreanAnalyzing {
 
     func analyze(_ text: String) throws -> [KiwiToken] {
         tokens
+    }
+}
+
+private struct StaticSpacer: KoreanSpacing {
+    let map: [String: String]
+
+    func spacedText(_ text: String) throws -> String {
+        map[text] ?? text
     }
 }

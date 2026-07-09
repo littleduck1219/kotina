@@ -6,6 +6,7 @@ enum CorrectionRuleKind: Sendable {
     case waen
     case dependentNounSu
     case whitespace
+    case spacing
 }
 
 struct CorrectionEdit: Equatable, Sendable {
