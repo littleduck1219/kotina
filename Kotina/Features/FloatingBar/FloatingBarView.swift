@@ -53,15 +53,14 @@ struct FloatingBarView: View {
                 )
                 .allowsHitTesting(false)
         }
-        .overlay(alignment: .bottomTrailing) {
-            resizeGrip
-                .padding(.trailing, 5)
-                .padding(.bottom, 3)
-        }
         // 패널 여백(가로 10pt·세로 4pt)을 넘는 그림자는 사각형으로 잘려 보이므로 여백 안에 들어가게 유지한다.
         .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
         .padding(.horizontal, FloatingBarMetrics.horizontalInset)
         .padding(.vertical, FloatingBarMetrics.verticalInset)
+        .overlay(alignment: .bottomTrailing) {
+            resizeGrip
+                .offset(x: 3, y: 3)
+        }
         .onChange(of: model.isExpanded) { _, expanded in
             expansionChanged(expanded)
         }
@@ -187,6 +186,12 @@ struct FloatingBarView: View {
     private var resizeGrip: some View {
         PanelResizeGrip(onEvent: resizeEvent)
             .frame(width: 22, height: 22)
+            .background(.ultraThinMaterial, in: Circle())
+            .overlay {
+                Circle()
+                    .stroke(.white.opacity(0.24), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
             .overlay {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 9, weight: .bold))
