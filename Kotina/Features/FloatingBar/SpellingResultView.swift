@@ -9,15 +9,6 @@ struct SpellingResultView: View {
         VStack(alignment: .leading, spacing: 12) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    if result.issues.isEmpty {
-                        Label("확신할 수 있는 오류를 찾지 못했어요", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.callout.weight(.medium))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
-                            .glassCard()
-                    }
-
                     correctedTextCard
                 }
             }
@@ -29,9 +20,16 @@ struct SpellingResultView: View {
     private var correctedTextCard: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("교정된 문장")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text("교정된 문장")
+                        .font(.caption.weight(.semibold))
+                    if result.issues.isEmpty {
+                        Label("확신할 수 있는 오류 없음", systemImage: "checkmark.circle.fill")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                }
+                .foregroundStyle(.secondary)
                 annotatedCorrectedText
             }
             Spacer()
