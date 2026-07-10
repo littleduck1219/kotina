@@ -45,6 +45,18 @@ final class FloatingPanelTests: XCTestCase {
         XCTAssertEqual(expanded.width, FloatingPanelLayout.width)
     }
 
+    func testVisibleFrameKeepsPanelInsideScreen() {
+        let frame = FloatingPanelLayout.visibleFrame(
+            from: NSRect(x: 1_300, y: -200, width: 500, height: 200),
+            in: NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+
+        XCTAssertEqual(frame.maxX, 1_440)
+        XCTAssertEqual(frame.minY, 0)
+        XCTAssertEqual(frame.width, 500)
+        XCTAssertEqual(frame.height, 200)
+    }
+
     func testTopCenteredFrameUsesVisibleScreenBounds() {
         let screen = NSRect(x: 0, y: 0, width: 1_440, height: 900)
 

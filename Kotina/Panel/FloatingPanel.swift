@@ -43,6 +43,15 @@ enum FloatingPanelLayout {
     static let minExpandedHeight: CGFloat = 140
     static let maxExpandedHeight: CGFloat = 700
 
+    static func visibleFrame(from frame: NSRect, in screen: NSRect) -> NSRect {
+        let width = min(frame.width, screen.width)
+        let height = min(frame.height, screen.height)
+        let x = min(max(frame.origin.x, screen.minX), screen.maxX - width)
+        let y = min(max(frame.origin.y, screen.minY), screen.maxY - height)
+
+        return NSRect(x: x, y: y, width: width, height: height)
+    }
+
     static func frame(from currentFrame: NSRect, targetHeight: CGFloat) -> NSRect {
         NSRect(
             x: currentFrame.origin.x,

@@ -13,11 +13,15 @@ final class FloatingPanelController {
     private var isExpanded = false
     private var expandedHeight = FloatingPanelLayout.expandedHeight
     private var resizeStartFrame: NSRect?
+    private let injectedVisibleFrame: NSRect?
+    private let fallbackVisibleFrame: NSRect
 
     init(model: FloatingBarViewModel, screenFrame: NSRect? = nil) {
         let visibleFrame = screenFrame
             ?? NSScreen.main?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        injectedVisibleFrame = screenFrame
+        fallbackVisibleFrame = visibleFrame
         let initialFrame = FloatingPanelLayout.topCenteredFrame(
             screen: visibleFrame,
             panelSize: NSSize(
@@ -51,6 +55,7 @@ final class FloatingPanelController {
     }
 
     func show() {
+        keepPanelVisible()
         panel.orderFrontRegardless()
     }
 
@@ -86,23 +91,27 @@ final class FloatingPanelController {
             resizeStartFrame = panel.frame
         case let .changed(deltaWidth, deltaHeight):
             guard let startFrame = resizeStartFrame else { return }
+            let visibleFrame = currentVisibleFrame
             let width = min(
                 max(startFrame.width + deltaWidth, FloatingPanelLayout.minWidth),
-                FloatingPanelLayout.maxWidth
+                min(FloatingPanelLayout.maxWidth, visibleFrame.width)
             )
             let height = isExpanded
                 ? min(
                     max(startFrame.height + deltaHeight, FloatingPanelLayout.minExpandedHeight),
-                    FloatingPanelLayout.maxExpandedHeight
+                    min(FloatingPanelLayout.maxExpandedHeight, visibleFrame.height)
                 )
                 : FloatingPanelLayout.collapsedHeight
             // 드래그 시작 시점의 왼쪽·위 가장자리에 고정해 리사이즈 중 위치가 움직이지 않게 한다.
             panel.setFrame(
-                NSRect(
-                    x: startFrame.origin.x,
-                    y: startFrame.maxY - height,
-                    width: width,
-                    height: height
+                FloatingPanelLayout.visibleFrame(
+                    from: NSRect(
+                        x: startFrame.origin.x,
+                        y: startFrame.maxY - height,
+                        width: width,
+                        height: height
+                    ),
+                    in: visibleFrame
                 ),
                 display: true
             )
@@ -112,5 +121,19 @@ final class FloatingPanelController {
                 expandedHeight = panel.frame.height
             }
         }
+    }
+
+    private var currentVisibleFrame: NSRect {
+        injectedVisibleFrame
+            ?? panel.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? fallbackVisibleFrame
+    }
+
+    private func keepPanelVisible() {
+        let visibleFrame = currentVisibleFrame
+        let frame = FloatingPanelLayout.visibleFrame(from: panel.frame, in: visibleFrame)
+        guard frame != panel.frame else { return }
+        panel.setFrame(frame, display: true)
     }
 }
