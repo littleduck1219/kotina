@@ -42,7 +42,7 @@ final class FloatingBarViewModelTests: XCTestCase {
             translator: ImmediateTranslator(result: translation)
         )
 
-        model.sourceText = "몇일"
+        model.updateSourceText("몇일")
 
         await eventually {
             model.spellingPhase == .success(spelling)
@@ -233,6 +233,24 @@ final class FloatingBarViewModelTests: XCTestCase {
 
         model.toggleMode()
         XCTAssertEqual(model.mode, .spelling)
+    }
+
+    func testInputLanguageAutomaticallySelectsTranslationDirection() async {
+        let translator = ResourceAwareTranslator(
+            state: .ready,
+            result: .init(sourceLanguage: "en", targetLanguage: "ko", translatedText: "안녕하세요")
+        )
+        let model = makeModel(translator: translator)
+        model.sourceText = "안녕하세요"
+        await eventually { model.currentTranslationResult != nil }
+        XCTAssertEqual(model.translationDirection, .koreanToEnglish)
+
+        model.sourceText = "Hello"
+
+        await eventually { model.currentTranslationResult?.translatedText == "안녕하세요" }
+        XCTAssertEqual(model.translationDirection, .englishToKorean)
+        let directions = await translator.translatedDirections
+        XCTAssertEqual(directions, [.koreanToEnglish, .englishToKorean])
     }
 
     func testStaysOnTopDefaultsToTrue() {

@@ -78,7 +78,10 @@ struct FloatingBarView: View {
 
             TextField(
                 "텍스트를 입력하거나 붙여넣으세요",
-                text: $model.sourceText
+                text: Binding(
+                    get: { model.sourceText },
+                    set: { model.updateSourceText($0) }
+                )
             )
             .textFieldStyle(.plain)
             .font(.system(size: 15 * model.textSize.factor, weight: .medium))
@@ -295,16 +298,16 @@ struct FloatingBarView: View {
     private var translationContent: some View {
         switch model.translationPhase {
         case .idle, .checkingResources:
-            loadingView("번역 언어를 확인하고 있어요")
+            loadingView("로컬 번역 모델을 확인하고 있어요")
         case .preparing:
-            loadingView("번역 모델을 준비하고 있어요")
+            loadingView("로컬 번역 모델을 준비하고 있어요")
         case .translating:
-            loadingView("영어로 옮기고 있어요")
+            loadingView("\(model.translationDirection.targetLanguageName)로 옮기고 있어요")
         case .needsPreparation:
             messageView(
                 icon: "arrow.down.circle.fill",
-                title: "한국어→영어 번역 모델이 필요해요.",
-                actionTitle: "번역 모델 준비",
+                title: "약 2.5GB 로컬 번역 모델이 필요해요.",
+                actionTitle: "로컬 번역 모델 준비",
                 action: model.prepareTranslation
             )
         case let .success(result):
@@ -323,7 +326,7 @@ struct FloatingBarView: View {
         case .unavailable:
             messageView(
                 icon: "xmark.circle.fill",
-                title: "이 기기에서는 한국어→영어 번역을 사용할 수 없어요.",
+                title: "이 기기에서는 \(model.translationDirection.label) 번역을 사용할 수 없어요.",
                 actionTitle: nil,
                 action: nil
             )
@@ -351,7 +354,7 @@ struct FloatingBarView: View {
             let count = model.currentSpellingResult?.issues.count
             return count.map { "맞춤법 · \($0)" } ?? "맞춤법"
         case .translation:
-            return "번역"
+            return "번역 · \(model.translationDirection.label)"
         }
     }
 

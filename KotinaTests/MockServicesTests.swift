@@ -20,7 +20,7 @@ final class MockServicesTests: XCTestCase {
 
     func testKnownTranslationSampleProducesEnglish() async throws {
         let result = try await MockTranslator(delay: .zero)
-            .translate("오늘 회의는 몇일 뒤로 미뤄졌어요.")
+            .translate("오늘 회의는 몇일 뒤로 미뤄졌어요.", direction: .koreanToEnglish)
 
         XCTAssertEqual(
             result.translatedText,
@@ -29,7 +29,7 @@ final class MockServicesTests: XCTestCase {
     }
 
     func testUnknownTranslationIsClearlyMarkedAsMock() async throws {
-        let result = try await MockTranslator(delay: .zero).translate("새 문장")
+        let result = try await MockTranslator(delay: .zero).translate("새 문장", direction: .koreanToEnglish)
 
         XCTAssertEqual(result.translatedText, "[Mock translation] 새 문장")
         XCTAssertEqual(result.sourceLanguage, "ko")

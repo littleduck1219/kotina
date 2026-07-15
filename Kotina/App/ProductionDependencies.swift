@@ -17,7 +17,7 @@ struct ProductionDependencies {
         let broker = TranslationSessionBroker()
         return ProductionDependencies(
             spellingChecker: LocalKoreanChecker(analyzer: analyzer, spacer: analyzer),
-            translator: AppleTranslator(broker: broker),
+            translator: try LocalQwenTranslator(bundle: bundle),
             translationBroker: broker,
             pasteboard: SystemPasteboardWriter(),
             applicationTerminator: SystemApplicationTerminator()

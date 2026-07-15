@@ -55,6 +55,7 @@ final class FloatingBarViewModel {
     }
 
     private(set) var mode: ProcessingMode = .spelling
+    private(set) var translationDirection: TranslationDirection = .koreanToEnglish
     var staysOnTop = true
     var textSize: TextSizeOption = .medium {
         didSet { defaults.set(textSize.rawValue, forKey: Self.textSizeKey) }
@@ -116,7 +117,12 @@ final class FloatingBarViewModel {
     }
 
     func clear() {
-        sourceText = ""
+        updateSourceText("")
+    }
+
+    func updateSourceText(_ text: String) {
+        sourceText = text
+        sourceDidChange()
     }
 
     func toggleMode() {
@@ -165,9 +171,10 @@ final class FloatingBarViewModel {
         translationPhase = .preparing
         let service = translator
         let currentID = requestID
+        let direction = translationDirection
         translationTask = Task { [weak self] in
             do {
-                try await service.prepareTranslation()
+                try await service.prepareTranslation(for: direction)
                 try Task.checkCancellation()
                 await self?.processTranslation(
                     text: text,
@@ -212,6 +219,10 @@ final class FloatingBarViewModel {
             spellingPhase = .idle
             translationPhase = .idle
             return
+        }
+
+        if let detectedDirection = TranslationDirection.detected(from: text) {
+            translationDirection = detectedDirection
         }
 
         guard text.count <= 5_000 else {
@@ -270,7 +281,8 @@ final class FloatingBarViewModel {
         requestID: UUID,
         service: any TranslationProcessing
     ) async {
-        let state = await service.resourceState()
+        let direction = translationDirection
+        let state = await service.resourceState(for: direction)
         guard !Task.isCancelled, self.requestID == requestID else { return }
 
         switch state {
@@ -283,7 +295,7 @@ final class FloatingBarViewModel {
         case .ready:
             finishTranslation(.translating, requestID: requestID)
             do {
-                let result = try await service.translate(text)
+                let result = try await service.translate(text, direction: direction)
                 guard !Task.isCancelled else { return }
                 finishTranslation(.success(result), requestID: requestID)
             } catch is CancellationError {

@@ -5,12 +5,12 @@ protocol SpellingChecking: Sendable {
 }
 
 protocol Translating: Sendable {
-    func translate(_ text: String) async throws -> TranslationResult
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult
 }
 
 protocol TranslationProcessing: Translating {
-    func resourceState() async -> TranslationResourceState
-    func prepareTranslation() async throws
+    func resourceState(for direction: TranslationDirection) async -> TranslationResourceState
+    func prepareTranslation(for direction: TranslationDirection) async throws
 }
 
 enum TranslationResourceState: Equatable, Sendable {
@@ -35,7 +35,7 @@ enum TextProcessingError: LocalizedError, Equatable {
         case .translationNeedsPreparation:
             "번역 모델을 먼저 준비해 주세요."
         case .translationUnavailable:
-            "이 기기에서는 한국어→영어 번역을 사용할 수 없어요."
+            "이 기기에서는 이 번역 방향을 사용할 수 없어요."
         }
     }
 }

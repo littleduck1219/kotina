@@ -20,6 +20,9 @@ targets:
       - path: Vendor/Kiwi/models/cong/base
         type: folder
         buildPhase: resources
+      - path: Vendor/Llama
+        type: folder
+        buildPhase: resources
       - path: THIRD_PARTY_NOTICES.md
         buildPhase: resources
     settings:

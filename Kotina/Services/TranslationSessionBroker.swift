@@ -5,22 +5,23 @@ import Observation
 @MainActor
 protocol TranslationSessionDriving: AnyObject {
     func prepareTranslation() async throws
-    func translate(_ text: String) async throws -> TranslationResult
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult
 }
 
 @MainActor
 @Observable
 final class TranslationSessionBroker {
     private(set) var configuration: TranslationSession.Configuration?
+    private var configurationDirection: TranslationDirection?
 
     private var pendingOperation: PendingOperation?
     private var executingOperation: PendingOperation?
 
-    func prepareTranslation() async throws {
+    func prepareTranslation(for direction: TranslationDirection) async throws {
         let id = UUID()
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                enqueue(.preparation(id: id, continuation: continuation))
+                enqueue(.preparation(id: id, direction: direction, continuation: continuation))
             }
         } onCancel: {
             Task { @MainActor [weak self] in
@@ -29,11 +30,11 @@ final class TranslationSessionBroker {
         }
     }
 
-    func translate(_ text: String) async throws -> TranslationResult {
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult {
         let id = UUID()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                enqueue(.translation(id: id, text: text, continuation: continuation))
+                enqueue(.translation(id: id, text: text, direction: direction, continuation: continuation))
             }
         } onCancel: {
             Task { @MainActor [weak self] in
@@ -49,11 +50,11 @@ final class TranslationSessionBroker {
 
         do {
             switch operation {
-            case let .preparation(id, _):
+            case let .preparation(id, _, _):
                 try await driver.prepareTranslation()
                 finish(id: id, result: .preparation)
-            case let .translation(id, text, _):
-                let result = try await driver.translate(text)
+            case let .translation(id, text, direction, _):
+                let result = try await driver.translate(text, direction: direction)
                 finish(id: id, result: .translation(result))
             }
         } catch {
@@ -77,19 +78,30 @@ final class TranslationSessionBroker {
 
         cancelCurrentOperation()
         pendingOperation = operation
-        requestSession()
+        requestSession(for: operation.direction)
     }
 
-    private func requestSession() {
-        if var configuration {
+    private func requestSession(for direction: TranslationDirection) {
+        if configurationDirection != direction || configuration == nil {
+            configuration = makeConfiguration(for: direction)
+            configurationDirection = direction
+        } else if var configuration {
             configuration.invalidate()
             self.configuration = configuration
-        } else {
-            configuration = TranslationSession.Configuration(
-                source: Locale.Language(identifier: "ko"),
-                target: Locale.Language(identifier: "en")
+        }
+    }
+
+    private func makeConfiguration(for direction: TranslationDirection) -> TranslationSession.Configuration {
+        let source = Locale.Language(identifier: direction.sourceLanguageCode)
+        let target = Locale.Language(identifier: direction.targetLanguageCode)
+        if #available(macOS 26.4, *) {
+            return TranslationSession.Configuration(
+                source: source,
+                target: target,
+                preferredStrategy: .highFidelity
             )
         }
+        return TranslationSession.Configuration(source: source, target: target)
     }
 
     private func cancelCurrentOperation() {
@@ -135,11 +147,11 @@ private final class AppleTranslationSessionDriver: TranslationSessionDriving {
         try await session.prepareTranslation()
     }
 
-    func translate(_ text: String) async throws -> TranslationResult {
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult {
         let response = try await session.translate(text)
         return TranslationResult(
-            sourceLanguage: "ko",
-            targetLanguage: "en",
+            sourceLanguage: direction.sourceLanguageCode,
+            targetLanguage: direction.targetLanguageCode,
             translatedText: response.targetText
         )
     }
@@ -153,26 +165,35 @@ private enum PendingResult {
 private enum PendingOperation {
     case preparation(
         id: UUID,
+        direction: TranslationDirection,
         continuation: CheckedContinuation<Void, any Error>
     )
     case translation(
         id: UUID,
         text: String,
+        direction: TranslationDirection,
         continuation: CheckedContinuation<TranslationResult, any Error>
     )
 
     var id: UUID {
         switch self {
-        case let .preparation(id, _), let .translation(id, _, _):
+        case let .preparation(id, _, _), let .translation(id, _, _, _):
             id
+        }
+    }
+
+    var direction: TranslationDirection {
+        switch self {
+        case let .preparation(_, direction, _), let .translation(_, _, direction, _):
+            direction
         }
     }
 
     func resume(returning result: PendingResult) {
         switch (self, result) {
-        case let (.preparation(_, continuation), .preparation):
+        case let (.preparation(_, _, continuation), .preparation):
             continuation.resume()
-        case let (.translation(_, _, continuation), .translation(result)):
+        case let (.translation(_, _, _, continuation), .translation(result)):
             continuation.resume(returning: result)
         default:
             resume(throwing: TextProcessingError.unavailable)
@@ -181,9 +202,9 @@ private enum PendingOperation {
 
     func resume(throwing error: any Error) {
         switch self {
-        case let .preparation(_, continuation):
+        case let .preparation(_, _, continuation):
             continuation.resume(throwing: error)
-        case let .translation(_, _, continuation):
+        case let .translation(_, _, _, continuation):
             continuation.resume(throwing: error)
         }
     }

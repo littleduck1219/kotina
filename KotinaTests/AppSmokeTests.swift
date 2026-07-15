@@ -20,12 +20,10 @@ final class AppSmokeTests: XCTestCase {
         let translationType = String(reflecting: type(of: dependencies.translator))
 
         XCTAssertTrue(spellingType.contains("LocalKoreanChecker"), spellingType)
-        XCTAssertTrue(translationType.contains("AppleTranslator"), translationType)
+        XCTAssertTrue(translationType.contains("LocalQwenTranslator"), translationType)
         XCTAssertFalse(spellingType.contains("Mock"), spellingType)
         XCTAssertFalse(translationType.contains("Mock"), translationType)
 
-        let translator = try XCTUnwrap(dependencies.translator as? AppleTranslator)
-        XCTAssertTrue(translator.broker === dependencies.translationBroker)
     }
 
     @MainActor

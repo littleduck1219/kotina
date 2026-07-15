@@ -36,21 +36,21 @@ struct MockTranslator: TranslationProcessing {
         self.delay = delay
     }
 
-    func resourceState() async -> TranslationResourceState {
+    func resourceState(for direction: TranslationDirection) async -> TranslationResourceState {
         .ready
     }
 
-    func prepareTranslation() async throws {
+    func prepareTranslation(for direction: TranslationDirection) async throws {
     }
 
-    func translate(_ text: String) async throws -> TranslationResult {
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult {
         try await Task.sleep(for: delay)
         let translatedText = text == "오늘 회의는 몇일 뒤로 미뤄졌어요."
             ? "Today's meeting has been postponed for a few days."
             : "[Mock translation] \(text)"
         return TranslationResult(
-            sourceLanguage: "ko",
-            targetLanguage: "en",
+            sourceLanguage: direction.sourceLanguageCode,
+            targetLanguage: direction.targetLanguageCode,
             translatedText: translatedText
         )
     }
@@ -67,14 +67,14 @@ struct ImmediateSpellingChecker: SpellingChecking {
 struct ImmediateTranslator: TranslationProcessing {
     let result: TranslationResult
 
-    func resourceState() async -> TranslationResourceState {
+    func resourceState(for direction: TranslationDirection) async -> TranslationResourceState {
         .ready
     }
 
-    func prepareTranslation() async throws {
+    func prepareTranslation(for direction: TranslationDirection) async throws {
     }
 
-    func translate(_ text: String) async throws -> TranslationResult {
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult {
         result
     }
 }
@@ -118,14 +118,14 @@ actor RecoveringTranslator: TranslationProcessing {
         self.result = result
     }
 
-    func resourceState() async -> TranslationResourceState {
+    func resourceState(for direction: TranslationDirection) async -> TranslationResourceState {
         .ready
     }
 
-    func prepareTranslation() async throws {
+    func prepareTranslation(for direction: TranslationDirection) async throws {
     }
 
-    func translate(_ text: String) async throws -> TranslationResult {
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult {
         attempts += 1
         if attempts == 1 {
             throw TextProcessingError.unavailable
@@ -140,6 +140,7 @@ actor ResourceAwareTranslator: TranslationProcessing {
     private let result: TranslationResult
     private(set) var preparationCount = 0
     private(set) var translatedTexts: [String] = []
+    private(set) var translatedDirections: [TranslationDirection] = []
 
     init(
         state: TranslationResourceState,
@@ -155,17 +156,18 @@ actor ResourceAwareTranslator: TranslationProcessing {
         self.result = result
     }
 
-    func resourceState() async -> TranslationResourceState {
+    func resourceState(for direction: TranslationDirection) async -> TranslationResourceState {
         state
     }
 
-    func prepareTranslation() async throws {
+    func prepareTranslation(for direction: TranslationDirection) async throws {
         preparationCount += 1
         state = stateAfterPreparation
     }
 
-    func translate(_ text: String) async throws -> TranslationResult {
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult {
         translatedTexts.append(text)
+        translatedDirections.append(direction)
         return result
     }
 }

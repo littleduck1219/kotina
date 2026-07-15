@@ -33,6 +33,8 @@ command -v ditto >/dev/null || fail "ditto is required"
     || fail "Kiwi runtime is missing; run scripts/fetch-kiwi.sh"
 [[ -f "$ROOT_DIR/Vendor/Kiwi/models/cong/base/cong.mdl" ]] \
     || fail "Kiwi base model is missing; run scripts/fetch-kiwi.sh"
+[[ -x "$ROOT_DIR/Vendor/Llama/llama-cli" ]] \
+    || fail "llama.cpp runtime is missing; run scripts/fetch-llama.sh"
 [[ -s "$ROOT_DIR/THIRD_PARTY_NOTICES.md" ]] || fail "third-party notice is missing"
 [[ -s "$ROOT_DIR/README.md" ]] || fail "README is missing"
 
@@ -58,6 +60,8 @@ xcodebuild -quiet \
     || fail "embedded Kiwi runtime is missing"
 [[ -f "$APP_PATH/Contents/Resources/base/cong.mdl" ]] \
     || fail "embedded Kiwi model is missing"
+[[ -x "$APP_PATH/Contents/Resources/Llama/llama-cli" ]] \
+    || fail "embedded llama.cpp runtime is missing"
 [[ -f "$APP_PATH/Contents/Resources/THIRD_PARTY_NOTICES.md" ]] \
     || fail "embedded third-party notice is missing"
 

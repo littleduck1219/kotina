@@ -9,7 +9,7 @@ final class TranslationSessionBrokerTests: XCTestCase {
             broker: TranslationSessionBroker()
         )
 
-        let state = await translator.resourceState()
+        let state = await translator.resourceState(for: .koreanToEnglish)
         XCTAssertEqual(state, .needsPreparation)
     }
 
@@ -19,7 +19,7 @@ final class TranslationSessionBrokerTests: XCTestCase {
             broker: TranslationSessionBroker()
         )
 
-        let state = await translator.resourceState()
+        let state = await translator.resourceState(for: .koreanToEnglish)
         XCTAssertEqual(state, .ready)
     }
 
@@ -29,14 +29,14 @@ final class TranslationSessionBrokerTests: XCTestCase {
             broker: TranslationSessionBroker()
         )
 
-        let state = await translator.resourceState()
+        let state = await translator.resourceState(for: .koreanToEnglish)
         XCTAssertEqual(state, .unavailable)
     }
 
     func testPreparationCompletesThroughDriver() async throws {
         let broker = TranslationSessionBroker()
         let driver = RecordingTranslationSessionDriver()
-        let preparation = Task { try await broker.prepareTranslation() }
+        let preparation = Task { try await broker.prepareTranslation(for: .koreanToEnglish) }
         await waitForConfiguration(on: broker)
 
         await broker.handle(driver: driver)
@@ -44,6 +44,17 @@ final class TranslationSessionBrokerTests: XCTestCase {
 
         XCTAssertEqual(driver.preparationCount, 1)
         XCTAssertEqual(driver.translatedTexts, [])
+    }
+
+    func testUsesHighFidelityStrategyWhenAvailable() async {
+        guard #available(macOS 26.4, *) else { return }
+
+        let broker = TranslationSessionBroker()
+        let preparation = Task { try await broker.prepareTranslation(for: .koreanToEnglish) }
+        await waitForConfiguration(on: broker)
+
+        XCTAssertEqual(broker.configuration?.preferredStrategy, .highFidelity)
+        preparation.cancel()
     }
 
     func testTranslationReturnsDriverResult() async throws {
@@ -54,7 +65,7 @@ final class TranslationSessionBrokerTests: XCTestCase {
         )
         let broker = TranslationSessionBroker()
         let driver = RecordingTranslationSessionDriver(result: expected)
-        let translation = Task { try await broker.translate("안녕") }
+        let translation = Task { try await broker.translate("안녕", direction: .koreanToEnglish) }
         await waitForConfiguration(on: broker)
 
         await broker.handle(driver: driver)
@@ -64,6 +75,31 @@ final class TranslationSessionBrokerTests: XCTestCase {
         XCTAssertEqual(driver.translatedTexts, ["안녕"])
     }
 
+    func testAppleTranslatorRefinesCompletedTranslation() async throws {
+        let broker = TranslationSessionBroker()
+        let translator = AppleTranslator(
+            availability: FixedTranslationAvailability(status: .installed),
+            broker: broker,
+            refiner: FixedTranslationRefiner(text: "Have you adopted AI but find the costs hard to manage?")
+        )
+        let translation = Task {
+            try await translator.translate(
+                "AI 도입했는데, 비용이 감당이 안 되시나요?",
+                direction: .koreanToEnglish
+            )
+        }
+        await waitForConfiguration(on: broker)
+
+        await broker.handle(driver: RecordingTranslationSessionDriver(result: .init(
+            sourceLanguage: "ko",
+            targetLanguage: "en",
+            translatedText: "I introduced AI, Can't you afford the cost?"
+        )))
+
+        let result = try await translation.value
+        XCTAssertEqual(result.translatedText, "Have you adopted AI but find the costs hard to manage?")
+    }
+
     func testNewRequestCancelsStaleRequest() async throws {
         let expected = TranslationResult(
             sourceLanguage: "ko",
@@ -71,11 +107,11 @@ final class TranslationSessionBrokerTests: XCTestCase {
             translatedText: "New"
         )
         let broker = TranslationSessionBroker()
-        let first = Task { try await broker.translate("이전") }
+        let first = Task { try await broker.translate("이전", direction: .koreanToEnglish) }
         await waitForConfiguration(on: broker)
         let firstVersion = broker.configuration?.version
 
-        let second = Task { try await broker.translate("최신") }
+        let second = Task { try await broker.translate("최신", direction: .koreanToEnglish) }
         await waitForConfigurationChange(on: broker, from: firstVersion)
 
         do {
@@ -98,7 +134,7 @@ final class TranslationSessionBrokerTests: XCTestCase {
             availability: FixedTranslationAvailability(status: .supported),
             broker: broker
         )
-        let preparation = Task { try await translator.prepareTranslation() }
+        let preparation = Task { try await translator.prepareTranslation(for: .koreanToEnglish) }
         await waitForConfiguration(on: broker)
 
         preparation.cancel()
@@ -110,7 +146,7 @@ final class TranslationSessionBrokerTests: XCTestCase {
         } catch {
             XCTFail("예상하지 못한 오류: \(error)")
         }
-        let state = await translator.resourceState()
+        let state = await translator.resourceState(for: .koreanToEnglish)
         XCTAssertEqual(state, .needsPreparation)
     }
 
@@ -135,8 +171,24 @@ final class TranslationSessionBrokerTests: XCTestCase {
 private struct FixedTranslationAvailability: TranslationAvailabilityChecking {
     let status: TranslationAvailabilityStatus
 
-    func status() async -> TranslationAvailabilityStatus {
+    func status(for direction: TranslationDirection) async -> TranslationAvailabilityStatus {
         status
+    }
+}
+
+private struct FixedTranslationRefiner: TranslationRefining {
+    let text: String
+
+    func refine(
+        sourceText: String,
+        translation: TranslationResult,
+        direction: TranslationDirection
+    ) async -> TranslationResult {
+        .init(
+            sourceLanguage: translation.sourceLanguage,
+            targetLanguage: translation.targetLanguage,
+            translatedText: text
+        )
     }
 }
 
@@ -158,7 +210,7 @@ private final class RecordingTranslationSessionDriver: TranslationSessionDriving
         preparationCount += 1
     }
 
-    func translate(_ text: String) async throws -> TranslationResult {
+    func translate(_ text: String, direction: TranslationDirection) async throws -> TranslationResult {
         translatedTexts.append(text)
         return result
     }

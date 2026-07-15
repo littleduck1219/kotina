@@ -62,9 +62,12 @@ final class FloatingPanelController {
     func setExpanded(_ expanded: Bool, animated: Bool) {
         isExpanded = expanded
         let targetHeight = expanded ? expandedHeight : FloatingPanelLayout.collapsedHeight
-        let frame = FloatingPanelLayout.frame(
-            from: panel.frame,
-            targetHeight: targetHeight
+        let frame = FloatingPanelLayout.visibleFrame(
+            from: FloatingPanelLayout.frame(
+                from: panel.frame,
+                targetHeight: targetHeight
+            ),
+            in: currentVisibleFrame
         )
 
         guard animated else {

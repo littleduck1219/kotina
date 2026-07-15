@@ -34,6 +34,22 @@ final class FloatingPanelControllerTests: XCTestCase {
         XCTAssertEqual(controller.panel.frame.maxY, initialTop)
     }
 
+    func testExpansionKeepsAnOffscreenPanelVisible() {
+        let controller = FloatingPanelController(
+            model: makeModel(),
+            screenFrame: NSRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+        controller.panel.setFrame(
+            NSRect(x: 200, y: 880, width: 500, height: FloatingPanelLayout.collapsedHeight),
+            display: false
+        )
+
+        controller.setExpanded(true, animated: false)
+
+        XCTAssertLessThanOrEqual(controller.panel.frame.maxY, 900)
+        XCTAssertGreaterThanOrEqual(controller.panel.frame.minY, 0)
+    }
+
     func testCollapsedGripDragChangesWidthOnly() {
         let controller = FloatingPanelController(
             model: makeModel(),

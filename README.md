@@ -1,7 +1,7 @@
 # Kotina
 
 Kotina는 macOS 화면 상단에 떠 있는 글래스 플로팅 바에서 한국어 문장을
-보수적으로 교정하고 영어로 번역하는 무료 베타 앱입니다.
+보수적으로 교정하고 한국어·영어 사이를 번역하는 무료 베타 앱입니다.
 
 ## 시스템 요구 사항
 
@@ -11,12 +11,14 @@ Kotina는 macOS 화면 상단에 떠 있는 글래스 플로팅 바에서 한국
 
 ## 비용과 개인정보
 
-맞춤법 검사는 앱에 포함된 Kiwi 형태소 분석기와 결정적 규칙으로 Mac 안에서
-처리됩니다. 번역은 Apple Translation을 사용하며 유료 API 키나 사용량 과금이
-없습니다. Kotina는 분석·추적·원격 텔레메트리를 포함하지 않습니다.
+맞춤법 검사와 번역은 모두 Mac 안에서 처리됩니다. 번역은 앱에 포함된 llama.cpp
+실행기와 사용자가 처음 준비할 때 내려받는 Qwen3-4B 모델을 사용하며, 유료 API 키,
+사용량 과금, 서버 전송이 없습니다. Kotina는 분석·추적·원격 텔레메트리를 포함하지
+않습니다.
 
-처음 한국어→영어 번역을 준비할 때 macOS가 Apple의 언어 리소스를 다운로드할
-수 있습니다. 준비가 끝난 뒤 번역은 Apple의 온디바이스 번역 기능을 사용합니다.
+번역을 처음 사용할 때 약 2.5GB의 모델을 한 번 내려받습니다. 모델은
+`Application Support/Kotina/Models`에 저장되며 이후 한국어↔영어 번역은 오프라인으로
+실행됩니다.
 
 ## 설치
 
@@ -30,10 +32,10 @@ Gatekeeper를 비활성화하거나 quarantine 속성을 제거하는 명령은 
 
 ## 사용
 
-1. 상단 플로팅 바에 한국어 문장을 입력하거나 붙여넣습니다.
+1. 상단 플로팅 바에 한국어 또는 영어 문장을 입력하거나 붙여넣습니다.
 2. 맞춤법 탭에서 확신할 수 있는 교정과 이유를 확인합니다.
-3. 번역 탭에 `번역 모델 준비`가 표시되면 버튼을 눌러 Apple 언어 리소스를
-   준비합니다.
+3. 번역 탭에서 `한국어 → 영어` 또는 `영어 → 한국어`를 선택하고, `로컬 번역 모델 준비`가
+   표시되면 버튼을 눌러 약 2.5GB 모델을 한 번 준비합니다.
 4. `교정문 복사` 또는 `번역문 복사`로 결과를 클립보드에 복사합니다.
 
 플로팅 바의 `…` 메뉴에서 `Kotina 종료`를 선택하거나 `Command-Q`를 눌러 앱을
@@ -67,15 +69,17 @@ shasum -a 256 -c Kotina-<version>-macOS-arm64.zip.sha256
 ## 제거
 
 Kotina를 종료한 뒤 응용 프로그램 폴더의 `Kotina.app`을 휴지통으로 옮기면 됩니다.
-계정이나 서버 데이터는 없습니다. Apple 언어 리소스 관리는 macOS가 담당합니다.
+계정이나 서버 데이터는 없습니다. 내려받은 모델까지 지우려면
+`Application Support/Kotina/Models` 폴더도 삭제합니다.
 
 ## 소스에서 빌드
 
 ```bash
 scripts/fetch-kiwi.sh
+scripts/fetch-llama.sh
 xcodegen generate
 xcodebuild -project Kotina.xcodeproj -scheme Kotina -destination 'platform=macOS' build
 ```
 
-Kiwi 0.23.2와 모델의 출처·checksum·라이선스 정보는
+Kiwi 0.23.2, llama.cpp, Qwen3 모델의 출처·checksum·라이선스 정보는
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)에 있습니다.

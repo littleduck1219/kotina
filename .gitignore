@@ -28,6 +28,7 @@ Kotina.xcodeproj/
 /Vendor/Kiwi/include/
 /Vendor/Kiwi/lib/
 /Vendor/Kiwi/models/
+/Vendor/Llama/
 
 # Generated beta artifacts
 /dist/
